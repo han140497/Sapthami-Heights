@@ -68,16 +68,26 @@ npm test          # water engine, money, session crypto (fuzz + edge cases)
 
 ## Deploy to Cloudflare
 
+One-time, authenticate wrangler with your Cloudflare account (opens a browser):
 ```bash
-npm run cf:deploy
+npx wrangler login
 ```
-Set production secrets (not committed) with:
+Then deploy — this uploads the runtime secrets from `.env.local` and deploys in one step:
 ```bash
-npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
-npx wrangler secret put RESIDENT_SESSION_SECRET
-npx wrangler secret put LOGIN_IP_SALT
+bash scripts/deploy.sh
 ```
-Public vars (`SUPABASE_URL`, `NEXT_PUBLIC_*`) go in `wrangler.jsonc` or the dashboard.
+
+Under the hood: four values are read at **runtime** and are uploaded as Worker
+secrets (never committed) — `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+`RESIDENT_SESSION_SECRET`, `LOGIN_IP_SALT`. The two `NEXT_PUBLIC_*` values (Supabase
+URL + anon key) are non-secret and are inlined into the bundle at build time from
+`.env.local`, so they are not uploaded separately.
+
+> Next.js 16 note: the Supabase session-refresh middleware was removed because Next 16
+> forces middleware (`proxy.ts`) onto the Node.js runtime, which OpenNext's Cloudflare
+> adapter does not yet support. Committee authorization is unaffected — it is checked
+> server-side on every request in `getCommitteeIdentity()`, and tokens refresh in
+> Server Actions where cookies are writable.
 
 ## A note on the resident gate
 

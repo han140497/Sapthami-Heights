@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Cloudflare / OpenNext build output
+.open-next/
+.wrangler/
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
+
+# wrangler local secrets
+.dev.vars

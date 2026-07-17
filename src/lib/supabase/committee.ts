@@ -33,8 +33,13 @@ export async function getCommitteeAuthClient() {
         try {
           toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
         } catch {
-          // Called from a Server Component where cookies are read-only; the
-          // middleware refreshes the session instead. Safe to ignore.
+          // Read-only cookies here mean this is a Server Component render (a page
+          // GET). getUser() still validates and refreshes the token in memory for
+          // this request; the rotated cookie is persisted the next time a Server
+          // Action or Route Handler runs, where cookies are writable. There is no
+          // edge middleware to do it eagerly — Next 16's Node-runtime proxy is
+          // unsupported on Cloudflare Workers — and for this app that only means a
+          // long-idle session re-authenticates, never a wrong authorization.
         }
       },
     },
