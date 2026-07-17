@@ -1,0 +1,21 @@
+{
+  // Cloudflare Workers config for the OpenNext-adapted Next.js app.
+  // Secrets (SUPABASE_SERVICE_ROLE_KEY, RESIDENT_SESSION_SECRET, LOGIN_IP_SALT) are
+  // NOT here — they are set with `wrangler secret put <NAME>` so they never sit in
+  // a committed file.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sapthami-heights",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-03-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    // Non-secret, public build-time values can go here. Secrets use `wrangler secret put`.
+  }
+}
