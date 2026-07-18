@@ -238,6 +238,29 @@ export async function getIssueCostSummary(): Promise<IssueCostRow[]> {
   return (data as IssueCostRow[]) ?? [];
 }
 
+/**
+ * Vote tallies per issue, and (when a flat is given) which issues that flat has
+ * upvoted. `flatId` is the resident's own flat from their signed cookie; committee
+ * views pass nothing and just get counts.
+ */
+export async function getIssueVotes(flatId?: string): Promise<Map<string, { count: number; voted: boolean }>> {
+  const admin = getServiceClient();
+  const [{ data: counts }, votedRes] = await Promise.all([
+    admin.from("issue_vote_counts").select("issue_id, vote_count"),
+    flatId
+      ? admin.from("issue_votes").select("issue_id").eq("flat_id", flatId)
+      : Promise.resolve({ data: [] as { issue_id: string }[] }),
+  ]);
+  const votedSet = new Set(((votedRes.data ?? []) as { issue_id: string }[]).map((r) => r.issue_id));
+  const map = new Map<string, { count: number; voted: boolean }>();
+  for (const c of (counts ?? []) as { issue_id: string; vote_count: number }[]) {
+    map.set(c.issue_id, { count: c.vote_count, voted: votedSet.has(c.issue_id) });
+  }
+  // Ensure voted-but-uncounted (shouldn't happen) and issues with no votes resolve sanely.
+  for (const id of votedSet) if (!map.has(id)) map.set(id, { count: 1, voted: true });
+  return map;
+}
+
 export async function getIssue(id: string) {
   const admin = getServiceClient();
   const [{ data: issue }, { data: estimates }, { data: comments }] = await Promise.all([

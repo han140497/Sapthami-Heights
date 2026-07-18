@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getIssue, getIssueCostSummary } from "@/lib/db/queries";
+import { getIssue, getIssueCostSummary, getIssueVotes } from "@/lib/db/queries";
+import { getResidentSession } from "@/lib/auth/resident";
 import { Card, PageHeader, Badge, EmptyState } from "@/components/ui";
 import { formatPaise } from "@/lib/money";
 import { CommentForm } from "./CommentForm";
+import { IssueVoteButton } from "../IssueVoteButton";
 
 export const dynamic = "force-dynamic";
 
@@ -13,14 +15,17 @@ export default async function IssueDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [{ issue, estimates, comments }, costs] = await Promise.all([
+  const session = await getResidentSession();
+  const [{ issue, estimates, comments }, costs, votes] = await Promise.all([
     getIssue(id),
     getIssueCostSummary(),
+    getIssueVotes(session?.flatId),
   ]);
   if (!issue) notFound();
 
   const cost = costs.find((c) => c.issue_id === id);
   const approved = estimates.find((e) => e.status === "approved");
+  const vote = votes.get(id) ?? { count: 0, voted: false };
 
   return (
     <>
@@ -30,6 +35,22 @@ export default async function IssueDetailPage({
       <PageHeader title={issue.title} subtitle={`${issue.reference} · raised by ${issue.raised_by_name ?? "a resident"}`}>
         <Badge value={issue.status} />
       </PageHeader>
+
+      <Card className="mb-4 flex items-center gap-4">
+        <IssueVoteButton issueId={id} count={vote.count} voted={vote.voted} size="lg" />
+        <div className="text-sm">
+          <p className="font-medium">
+            {vote.count === 0
+              ? "No one has marked this yet"
+              : `${vote.count} ${vote.count === 1 ? "home is" : "homes are"} facing this`}
+          </p>
+          <p className="text-muted">
+            {vote.voted
+              ? "You've marked your flat as affected. Tap the arrow to undo."
+              : "Facing the same problem? Tap the arrow so the committee knows how many are affected."}
+          </p>
+        </div>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">

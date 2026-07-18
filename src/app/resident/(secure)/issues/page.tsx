@@ -1,15 +1,22 @@
 import Link from "next/link";
-import { getIssues, getIssueCostSummary } from "@/lib/db/queries";
+import { getIssues, getIssueCostSummary, getIssueVotes } from "@/lib/db/queries";
+import { getResidentSession } from "@/lib/auth/resident";
 import { Card, PageHeader, Badge, EmptyState } from "@/components/ui";
 import { formatPaise } from "@/lib/money";
 import { RaiseIssueForm } from "./RaiseIssueForm";
+import { IssueVoteButton } from "./IssueVoteButton";
 
 export const dynamic = "force-dynamic";
 
 const OPEN_STATUSES = new Set(["open", "acknowledged", "estimating", "approved", "in_progress"]);
 
 export default async function IssuesPage() {
-  const [issues, costs] = await Promise.all([getIssues(), getIssueCostSummary()]);
+  const session = await getResidentSession();
+  const [issues, costs, votes] = await Promise.all([
+    getIssues(),
+    getIssueCostSummary(),
+    getIssueVotes(session?.flatId),
+  ]);
   const costByIssue = new Map(costs.map((c) => [c.issue_id, c]));
 
   const open = issues.filter((i) => OPEN_STATUSES.has(i.status));
@@ -28,9 +35,9 @@ export default async function IssuesPage() {
         <EmptyState title="No issues yet" hint="Spot something? Raise it and the committee will pick it up." />
       ) : (
         <div className="flex flex-col gap-8">
-          <IssueGroup title={`Open (${open.length})`} issues={open} costByIssue={costByIssue} />
+          <IssueGroup title={`Open (${open.length})`} issues={open} costByIssue={costByIssue} votes={votes} />
           {done.length > 0 && (
-            <IssueGroup title={`Closed (${done.length})`} issues={done} costByIssue={costByIssue} />
+            <IssueGroup title={`Closed (${done.length})`} issues={done} costByIssue={costByIssue} votes={votes} />
           )}
         </div>
       )}
@@ -42,10 +49,12 @@ function IssueGroup({
   title,
   issues,
   costByIssue,
+  votes,
 }: {
   title: string;
   issues: Awaited<ReturnType<typeof getIssues>>;
   costByIssue: Map<string, { approved_estimate_paise: number | null; actual_spent_paise: number }>;
+  votes: Map<string, { count: number; voted: boolean }>;
 }) {
   if (issues.length === 0) return null;
   return (
@@ -54,26 +63,30 @@ function IssueGroup({
       <div className="flex flex-col gap-2">
         {issues.map((issue) => {
           const cost = costByIssue.get(issue.id);
+          const v = votes.get(issue.id) ?? { count: 0, voted: false };
           return (
             <Link key={issue.id} href={`/resident/issues/${issue.id}`}>
               <Card className="flex items-center justify-between gap-4 transition hover:border-primary">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate font-medium">{issue.title}</span>
-                    {issue.priority !== "normal" && issue.priority !== "low" && (
-                      <Badge value={issue.priority} />
-                    )}
-                  </div>
-                  <div className="mt-0.5 flex items-center gap-2 text-xs text-muted">
-                    <span className="font-mono">{issue.reference}</span>
-                    <span>·</span>
-                    <span className="capitalize">{issue.category.replace(/_/g, " ")}</span>
-                    {issue.raised_by_name && (
-                      <>
-                        <span>·</span>
-                        <span>{issue.raised_by_name}</span>
-                      </>
-                    )}
+                <div className="flex min-w-0 items-center gap-3">
+                  <IssueVoteButton issueId={issue.id} count={v.count} voted={v.voted} />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate font-medium">{issue.title}</span>
+                      {issue.priority !== "normal" && issue.priority !== "low" && (
+                        <Badge value={issue.priority} />
+                      )}
+                    </div>
+                    <div className="mt-0.5 flex items-center gap-2 text-xs text-muted">
+                      <span className="font-mono">{issue.reference}</span>
+                      <span>·</span>
+                      <span className="capitalize">{issue.category.replace(/_/g, " ")}</span>
+                      {issue.raised_by_name && (
+                        <>
+                          <span>·</span>
+                          <span>{issue.raised_by_name}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">

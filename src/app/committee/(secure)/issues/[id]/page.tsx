@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getIssue, getIssueCostSummary } from "@/lib/db/queries";
+import { Users } from "lucide-react";
+import { getIssue, getIssueCostSummary, getIssueVotes } from "@/lib/db/queries";
 import { Card, PageHeader, Badge, EmptyState } from "@/components/ui";
 import { formatPaise } from "@/lib/money";
 import { StatusControl, AddEstimateForm, EstimateDecision } from "../IssueControls";
@@ -9,9 +10,14 @@ export const dynamic = "force-dynamic";
 
 export default async function CommitteeIssueDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [{ issue, estimates, comments }, costs] = await Promise.all([getIssue(id), getIssueCostSummary()]);
+  const [{ issue, estimates, comments }, costs, votes] = await Promise.all([
+    getIssue(id),
+    getIssueCostSummary(),
+    getIssueVotes(),
+  ]);
   if (!issue) notFound();
   const cost = costs.find((c) => c.issue_id === id);
+  const voteCount = votes.get(id)?.count ?? 0;
 
   return (
     <>
@@ -19,7 +25,14 @@ export default async function CommitteeIssueDetail({ params }: { params: Promise
         ← All issues
       </Link>
       <PageHeader title={issue.title} subtitle={`${issue.reference} · ${issue.category.replace(/_/g, " ")} · raised by ${issue.raised_by_name ?? "a resident"}`}>
-        <Badge value={issue.status} />
+        <div className="flex items-center gap-2">
+          {voteCount > 0 && (
+            <span className="flex items-center gap-1 rounded-full bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent" title="Homes that marked themselves as facing this">
+              <Users className="h-3.5 w-3.5" /> {voteCount} {voteCount === 1 ? "home" : "homes"} facing
+            </span>
+          )}
+          <Badge value={issue.status} />
+        </div>
       </PageHeader>
 
       <Card className="mb-6">
