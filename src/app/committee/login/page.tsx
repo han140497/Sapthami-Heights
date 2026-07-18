@@ -25,6 +25,12 @@ export default async function CommitteeLoginPage() {
           For committee members only. Residents don&apos;t need this — use the resident entrance.
         </p>
         <CommitteeLoginForm />
+        <div className="mt-6 space-y-1 text-center text-sm text-muted">
+          <p>
+            Need access? <Link href="/committee/signup" className="text-accent hover:underline">Request an account</Link>
+          </p>
+          <p>Forgot your password? Ask a committee admin to reset it for you.</p>
+        </div>
       </div>
     </main>
   );

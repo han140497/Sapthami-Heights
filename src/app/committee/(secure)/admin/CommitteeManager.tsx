@@ -3,11 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus, X } from "lucide-react";
-import { addCommitteeMember, changeCommitteeRole, endCommitteeTerm } from "./actions";
+import { addCommitteeMember, changeCommitteeRole, endCommitteeTerm, setMemberPassword } from "./actions";
 
 const ROLES = ["admin", "president", "secretary", "treasurer", "member"] as const;
 
-type Member = { id: string; email: string; role: string; fromDate: string };
+type Member = { id: string; userId: string; email: string; role: string; fromDate: string };
 
 export function CommitteeManager({
   members,
@@ -62,6 +62,19 @@ export function CommitteeManager({
     });
   }
 
+  function onResetPassword(userId: string, email: string) {
+    if (!confirm(`Generate a new temporary password for ${email}? It will be shown once so you can share it.`)) return;
+    setError(null);
+    setNotice(null);
+    start(async () => {
+      const r = await setMemberPassword(userId); // no value → generates and returns one
+      if (r.ok) {
+        setNotice(r.message ?? null);
+        router.refresh();
+      } else setError(r.error ?? "Could not reset the password.");
+    });
+  }
+
   return (
     <section className="mt-6">
       <div className="mb-2 flex items-center justify-between">
@@ -89,9 +102,14 @@ export function CommitteeManager({
                 ))}
               </select>
             </label>
+            <label className="flex flex-col gap-1 text-sm sm:col-span-3">
+              Password (optional — leave blank to auto-generate)
+              <input name="password" type="text" minLength={8} placeholder="Set one now, or leave blank for a temporary password" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            </label>
           </div>
           <p className="mt-2 text-xs text-muted">
-            If this email has no login yet, one is created and a temporary password is shown once.
+            If this email has no login yet, one is created. Set a password here, or leave it blank and a
+            temporary one is shown once. Members can change it themselves under Account.
           </p>
           <button type="submit" disabled={pending} className="mt-3 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
             {pending ? "Adding…" : "Add to committee"}
@@ -114,7 +132,7 @@ export function CommitteeManager({
               <th className="px-4 py-2 text-left font-medium">Member</th>
               <th className="px-4 py-2 text-left font-medium">Role</th>
               <th className="px-4 py-2 text-left font-medium">Since</th>
-              <th className="px-4 py-2 text-right font-medium">Remove</th>
+              <th className="px-4 py-2 text-right font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -137,10 +155,15 @@ export function CommitteeManager({
                   </select>
                 </td>
                 <td className="px-4 py-2.5 tabular text-muted">{m.fromDate}</td>
-                <td className="px-4 py-2.5 text-right">
-                  <button onClick={() => onEndTerm(m.id, m.email)} disabled={pending} className="text-sm text-negative hover:underline disabled:opacity-50">
-                    Remove
-                  </button>
+                <td className="px-4 py-2.5">
+                  <div className="flex justify-end gap-3">
+                    <button onClick={() => onResetPassword(m.userId, m.email)} disabled={pending} className="text-sm text-muted hover:text-foreground disabled:opacity-50">
+                      Reset password
+                    </button>
+                    <button onClick={() => onEndTerm(m.id, m.email)} disabled={pending} className="text-sm text-negative hover:underline disabled:opacity-50">
+                      Remove
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

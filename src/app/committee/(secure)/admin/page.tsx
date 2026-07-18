@@ -6,6 +6,7 @@ import { RemoveResidentButton } from "./RemoveResidentButton";
 import { FlatsManager } from "./FlatsManager";
 import { AccountsManager } from "./AccountsManager";
 import { CommitteeManager } from "./CommitteeManager";
+import { PendingApprovals } from "./PendingApprovals";
 import { VehiclesManager } from "./VehiclesManager";
 
 export const dynamic = "force-dynamic";
@@ -61,7 +62,8 @@ export default async function AdminPage() {
 
   // --- Admin-only data ---
   let accountRows: { id: string; code: string; name: string; type: string; isActive: boolean; inUse: boolean }[] = [];
-  let committeeRows: { id: string; email: string; role: string; fromDate: string }[] = [];
+  let committeeRows: { id: string; userId: string; email: string; role: string; fromDate: string }[] = [];
+  let pendingRows: { userId: string; email: string; signedUpAt: string }[] = [];
 
   if (isAdmin) {
     const { data: accounts } = await admin.from("accounts").select("id, code, name, type, is_active").order("code");
@@ -86,10 +88,24 @@ export default async function AdminPage() {
     const emailById = new Map((userList?.users ?? []).map((u) => [u.id, u.email ?? "(no email)"]));
     committeeRows = (members ?? []).map((m) => ({
       id: m.id as string,
+      userId: m.user_id as string,
       email: emailById.get(m.user_id as string) ?? "(unknown)",
       role: m.role as string,
       fromDate: m.from_date as string,
     }));
+
+    // Pending = an auth user with NO committee_members row at all (a fresh self-signup
+    // that hasn't been approved). A removed member keeps a dated-out row, so they never
+    // resurface here.
+    const { data: everMembers } = await admin.from("committee_members").select("user_id");
+    const everMemberIds = new Set((everMembers ?? []).map((m) => m.user_id as string));
+    pendingRows = (userList?.users ?? [])
+      .filter((u) => !everMemberIds.has(u.id))
+      .map((u) => ({
+        userId: u.id,
+        email: u.email ?? "(no email)",
+        signedUpAt: (u.created_at ?? "").slice(0, 10),
+      }));
   }
 
   return (
@@ -149,6 +165,7 @@ export default async function AdminPage() {
 
       {isAdmin ? (
         <>
+          <PendingApprovals pending={pendingRows} />
           <CommitteeManager members={committeeRows} currentUserEmail={identity?.email ?? null} />
           <FlatsManager flats={flatRows} />
           <AccountsManager accounts={accountRows} />

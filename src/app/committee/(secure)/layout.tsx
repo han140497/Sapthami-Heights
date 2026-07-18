@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCommitteeIdentity } from "@/lib/supabase/committee";
+import { getCommitteeIdentity, getCommitteeAuthUser } from "@/lib/supabase/committee";
 import { CommitteeNav } from "../CommitteeNav";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,12 @@ export default async function SecureCommitteeLayout({
   } catch {
     identity = null;
   }
-  if (!identity) redirect("/committee/login");
+  if (!identity) {
+    // Signed in but not yet approved onto the committee → pending page, not a login
+    // loop. Genuinely signed out → login.
+    const user = await getCommitteeAuthUser();
+    redirect(user ? "/committee/pending" : "/committee/login");
+  }
 
   return (
     <div className="flex flex-1 flex-col">

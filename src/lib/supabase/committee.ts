@@ -74,6 +74,25 @@ export async function getCommitteeIdentity(): Promise<CommitteeIdentity | null> 
   return { userId: user.id, email: user.email ?? null, role: data.role as CommitteeRole };
 }
 
+/**
+ * The authenticated Supabase user, regardless of whether they hold a committee seat.
+ * This is how we tell apart "not signed in" (→ send to login) from "signed in but not
+ * yet approved onto the committee" (→ send to the pending-approval page). A self-signed
+ * -up member sits in this second state until an admin grants them a role.
+ */
+export async function getCommitteeAuthUser(): Promise<{ userId: string; email: string | null } | null> {
+  try {
+    const auth = await getCommitteeAuthClient();
+    const {
+      data: { user },
+    } = await auth.auth.getUser();
+    if (!user) return null;
+    return { userId: user.id, email: user.email ?? null };
+  } catch {
+    return null;
+  }
+}
+
 /** Throws if the caller is not an active committee member. Use at the top of every
  *  committee server action and protected route. */
 export async function requireCommittee(): Promise<CommitteeIdentity> {

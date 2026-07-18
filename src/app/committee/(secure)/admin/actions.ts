@@ -406,12 +406,20 @@ const committeeSchema = z.object({
   email: z.string().email(),
   name: z.string().trim().max(120).optional(),
   role: z.enum(["admin", "president", "secretary", "treasurer", "member"]),
+  // Optional: the admin sets the person's password directly ("set up the profile for
+  // them"). If left blank, a temporary one is generated and shown once.
+  password: z.string().min(8).optional().or(z.literal("")),
 });
 
+function randomTempPassword(): string {
+  return "SH-" + Math.random().toString(36).slice(2, 10);
+}
+
 /**
- * Add a committee member by email. If no auth user exists for that email one is
- * created with a temporary password (returned once so it can be shared); the person
- * signs in with it and should change it. Then an active committee seat is granted.
+ * Provision a committee member by email. If no auth user exists for that email one is
+ * created — with the password the admin typed, or a generated temporary one shown
+ * once. Then an active committee seat is granted. This is the "admin sets up the
+ * profile for them" path; the self-signup + approval path is separate.
  */
 export async function addCommitteeMember(_prev: unknown, formData: FormData): Promise<ActionResult> {
   try {
@@ -420,6 +428,7 @@ export async function addCommitteeMember(_prev: unknown, formData: FormData): Pr
       email: formData.get("email"),
       name: formData.get("name") ?? "",
       role: formData.get("role"),
+      password: formData.get("password") ?? "",
     });
     const admin = getServiceClient();
 
@@ -428,16 +437,20 @@ export async function addCommitteeMember(_prev: unknown, formData: FormData): Pr
     const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
     userId = list?.users?.find((u) => u.email?.toLowerCase() === p.email.toLowerCase())?.id ?? null;
 
-    let tempPassword: string | null = null;
+    let shownPassword: string | null = null;
     if (!userId) {
-      tempPassword = "SH-" + Math.random().toString(36).slice(2, 10);
+      const chosen = p.password && p.password.length >= 8 ? p.password : randomTempPassword();
+      shownPassword = p.password ? null : chosen; // only surface generated passwords
       const { data: created, error: cErr } = await admin.auth.admin.createUser({
         email: p.email,
-        password: tempPassword,
+        password: chosen,
         email_confirm: true,
       });
       if (cErr || !created?.user) return { ok: false, error: "Could not create the login for that email." };
       userId = created.user.id;
+    } else if (p.password && p.password.length >= 8) {
+      // Existing user, admin also set a password → update it.
+      await admin.auth.admin.updateUserById(userId, { password: p.password });
     }
 
     // Reject a second active seat for the same user (the DB also enforces this).
@@ -459,12 +472,96 @@ export async function addCommitteeMember(_prev: unknown, formData: FormData): Pr
     revalidatePath("/committee/admin");
     return {
       ok: true,
-      message: tempPassword
-        ? `Added ${p.email} as ${p.role}. Temporary password: ${tempPassword} — share it privately; they should change it after signing in.`
+      message: shownPassword
+        ? `Added ${p.email} as ${p.role}. Temporary password: ${shownPassword} — share it privately; they can change it under Account.`
         : `Added ${p.email} as ${p.role}.`,
     };
   } catch (e) {
     return authError(e) ?? { ok: false, error: "Check the details and try again." };
+  }
+}
+
+/**
+ * Approve a self-signed-up user by granting them a committee seat. "Pending" simply
+ * means an auth user with no active seat; approval assigns the role.
+ */
+export async function approvePendingMember(userId: string, role: string): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const parsedRole = z.enum(["admin", "president", "secretary", "treasurer", "member"]).parse(role);
+    const parsedId = z.string().uuid().parse(userId);
+    const admin = getServiceClient();
+
+    const { data: existing } = await admin
+      .from("committee_members")
+      .select("id")
+      .eq("user_id", parsedId)
+      .is("to_date", null)
+      .maybeSingle();
+    if (existing) return { ok: false, error: "That person is already on the committee." };
+
+    const { error } = await admin.from("committee_members").insert({
+      user_id: parsedId,
+      role: parsedRole,
+      from_date: new Date().toISOString().slice(0, 10),
+    });
+    if (error) return { ok: false, error: "Could not approve the member." };
+    revalidatePath("/committee/admin");
+    return { ok: true, message: `Approved as ${parsedRole}.` };
+  } catch (e) {
+    return authError(e) ?? { ok: false, error: "Could not approve the member." };
+  }
+}
+
+/** Reject a pending signup by deleting the auth account entirely. Only allowed for
+ *  users who never held a committee seat, so this can never erase a real member. */
+export async function rejectPendingMember(userId: string): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const parsedId = z.string().uuid().parse(userId);
+    const admin = getServiceClient();
+
+    const { count } = await admin
+      .from("committee_members")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", parsedId);
+    if ((count ?? 0) > 0) {
+      return { ok: false, error: "This user has committee history — remove their seat instead of rejecting." };
+    }
+
+    const { error } = await admin.auth.admin.deleteUser(parsedId);
+    if (error) return { ok: false, error: "Could not reject the account." };
+    revalidatePath("/committee/admin");
+    return { ok: true, message: "Signup rejected and account removed." };
+  } catch (e) {
+    return authError(e) ?? { ok: false, error: "Could not reject the account." };
+  }
+}
+
+/**
+ * Admin resets a member's password. With a value, sets exactly that; with none,
+ * generates a strong temporary one and returns it once so the admin can share it.
+ * This is the no-email fallback for a locked-out member.
+ */
+export async function setMemberPassword(userId: string, newPassword?: string): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const parsedId = z.string().uuid().parse(userId);
+    const admin = getServiceClient();
+
+    const chosen = newPassword && newPassword.length >= 8 ? newPassword : randomTempPassword();
+    const { error } = await admin.auth.admin.updateUserById(parsedId, { password: chosen });
+    if (error) return { ok: false, error: "Could not reset the password." };
+
+    revalidatePath("/committee/admin");
+    return {
+      ok: true,
+      message: newPassword
+        ? "Password updated."
+        : `New temporary password: ${chosen} — share it privately; they can change it under Account.`,
+    };
+  } catch (e) {
+    return authError(e) ?? { ok: false, error: "Could not reset the password." };
   }
 }
 

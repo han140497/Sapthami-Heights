@@ -13,6 +13,7 @@ const links = [
   { href: "/committee/issues", label: "Issues" },
   { href: "/committee/books", label: "Books" },
   { href: "/committee/admin", label: "Admin" },
+  { href: "/committee/account", label: "Account" },
 ];
 
 export function CommitteeNav({ email, role }: { email: string | null; role: string }) {
