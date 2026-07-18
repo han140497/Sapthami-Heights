@@ -49,7 +49,7 @@ export default function Home() {
         <div className="mt-8 flex items-center justify-center gap-2 text-xs text-muted">
           <Droplets className="h-4 w-4" />
           <span>
-            Two blocks · 32 flats · water blended from Manjeera &amp; tankers, shown in full.
+            Two blocks · 37 flats · water blended from Manjeera &amp; tankers, shown in full.
           </span>
         </div>
       </div>

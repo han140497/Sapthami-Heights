@@ -7,7 +7,7 @@ import { computeWaterPeriod, WaterAllocationError } from "@/lib/water/allocate";
 import { ReadingsGrid, type ReadingRow } from "./ReadingsGrid";
 import { WaterPurchaseForm } from "./WaterPurchaseForm";
 import { CloseButton, ReopenButton } from "./CloseControls";
-import { DeletePurchaseButton } from "./DeletePurchaseButton";
+import { PurchasesList } from "./PurchasesList";
 
 export const dynamic = "force-dynamic";
 
@@ -101,34 +101,7 @@ export default async function PeriodDetailPage({ params }: { params: Promise<{ i
       {/* Water purchases */}
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-semibold">Water bought this month</h2>
-        {(purchases ?? []).length > 0 && (
-          <Card className="mb-3 p-0">
-            <table className="w-full text-sm">
-              <tbody>
-                {(purchases ?? []).map((p) => (
-                  <tr key={p.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-2.5">
-                      <Badge value={p.source_type} />
-                    </td>
-                    <td className="px-4 py-2.5 tabular">{(p.litres / 1000).toLocaleString("en-IN")} KL</td>
-                    <td className="px-4 py-2.5 text-muted">{p.vendor ?? "—"}</td>
-                    <td className="px-4 py-2.5 text-right tabular">{formatPaise(p.amount_paise)}</td>
-                    {isOpen && (
-                      <td className="px-2 py-2.5 text-right">
-                        <DeletePurchaseButton periodId={id} purchaseId={p.id} />
-                      </td>
-                    )}
-                  </tr>
-                ))}
-                <tr className="bg-background/50 font-semibold">
-                  <td className="px-4 py-2.5" colSpan={3}>Total spent on water</td>
-                  <td className="px-4 py-2.5 text-right tabular">{formatPaise(waterSpent)}</td>
-                  {isOpen && <td />}
-                </tr>
-              </tbody>
-            </table>
-          </Card>
-        )}
+        <PurchasesList periodId={id} purchases={purchases ?? []} editable={isOpen} />
         {isOpen && <WaterPurchaseForm periodId={id} />}
       </section>
 

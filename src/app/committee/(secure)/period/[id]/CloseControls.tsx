@@ -50,8 +50,8 @@ export function CloseButton({ periodId, blocked }: { periodId: string; blocked: 
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
       <p className="mb-3 text-sm">
-        This raises 32 invoices and posts the ledger. It can be reopened, but only by reversing —
-        so do it once the readings and water bills are final.
+        This raises an invoice for every active flat and posts the ledger. It can be reopened, but
+        only by reversing — so do it once the readings and water bills are final.
       </p>
       <div className="flex gap-2">
         <button

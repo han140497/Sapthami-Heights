@@ -9,7 +9,7 @@ import { getServiceClient } from "./admin";
  * client, on every call.
  */
 
-export type CommitteeRole = "president" | "secretary" | "treasurer" | "member";
+export type CommitteeRole = "admin" | "president" | "secretary" | "treasurer" | "member";
 
 export interface CommitteeIdentity {
   userId: string;
@@ -85,13 +85,26 @@ export async function requireCommittee(): Promise<CommitteeIdentity> {
 }
 
 /** Throws unless the caller holds one of the given roles. Money-moving actions
- *  (recording payments, closing periods) are restricted to treasurer/president. */
+ *  (recording payments, closing periods) are restricted to treasurer/president.
+ *  Admin is a superset — it satisfies every role check, so it never needs to be
+ *  listed explicitly at a call site. */
 export async function requireRole(...roles: CommitteeRole[]): Promise<CommitteeIdentity> {
   const identity = await requireCommittee();
-  if (!roles.includes(identity.role)) {
+  if (identity.role !== "admin" && !roles.includes(identity.role)) {
     throw new CommitteeAuthError(
       `not authorised: this action requires one of [${roles.join(", ")}], you are ${identity.role}`,
     );
+  }
+  return identity;
+}
+
+/** Throws unless the caller is an Admin. Structural changes — flats, the chart of
+ *  accounts, committee membership and roles — go through here. Only Admin has the
+ *  absolute create/edit/delete control these grant. */
+export async function requireAdmin(): Promise<CommitteeIdentity> {
+  const identity = await requireCommittee();
+  if (identity.role !== "admin") {
+    throw new CommitteeAuthError("not authorised: this action requires the Admin role");
   }
   return identity;
 }

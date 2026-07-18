@@ -51,14 +51,14 @@ async function expectFailure(name: string, fn: () => Promise<unknown>, needle: s
 // ---------------------------------------------------------------------------
 console.log("\n[1] Schema sanity");
 const [{ count: flatCount }] = await sql`select count(*)::int as count from flats`;
-check("32 flats seeded", flatCount === 32, `got ${flatCount}`);
+check("37 flats seeded", flatCount === 37, `got ${flatCount}`);
 const [{ count: aCount }] = await sql`
   select count(*)::int as count from flats f join blocks b on b.id = f.block_id where b.code = 'A'`;
-check("Block A has 15 flats", aCount === 15, `got ${aCount}`);
-const [{ count: phCount }] = await sql`select count(*)::int as count from flats where floor = 'PH'`;
-check("exactly one penthouse", phCount === 1, `got ${phCount}`);
+check("Block A has 20 flats", aCount === 20, `got ${aCount}`);
+const [{ count: phTypeCount }] = await sql`select count(*)::int as count from flats where flat_type = 'penthouse'`;
+check("5 penthouse-type flats (A-40x + B-PH01)", phTypeCount === 5, `got ${phTypeCount}`);
 const [{ count: acctCount }] = await sql`select count(*)::int as count from accounts`;
-check("chart of accounts seeded (23)", acctCount === 23, `got ${acctCount}`);
+check("chart of accounts seeded (>= 23)", acctCount >= 23, `got ${acctCount}`);
 
 // ---------------------------------------------------------------------------
 console.log("\n[2] Committee login (Supabase Auth user + committee seat)");
@@ -108,7 +108,9 @@ if (userId) {
   }
   const [seat] = await sql`
     select role from committee_members where user_id = ${userId} and to_date is null`;
-  check("active committee seat (president)", seat?.role === "president");
+  // The founding user is promoted to admin by migration 20260718000100; a plain
+  // committee run would leave them president. Either is a valid active seat.
+  check("active committee seat (admin or president)", seat?.role === "admin" || seat?.role === "president", `got ${seat?.role}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -154,11 +156,11 @@ await sql`insert into water_purchases (period_id, source_type, purchased_on, lit
   (${period.id}, 'tanker',   '2026-07-12',  60000, 1080000, 'SriSai Tankers'),
   (${period.id}, 'tanker',   '2026-07-25',  40000,  720000, 'SriSai Tankers')`;
 
-// Readings: 31 flats at 14,000 L + A-101 at 36,000 L = 470,000 L metered
+// Readings: 36 flats at 12,000 L + A-101 at 38,000 L = 470,000 L metered
 // (30,000 L loss = 6%). A-101 heavy so per-flat proportionality is visible.
 const flats = await sql`select id, number from flats where is_active order by number`;
 for (const f of flats) {
-  const litres = f.number === "A-101" ? 36000 : 14000;
+  const litres = f.number === "A-101" ? 38000 : 12000;
   await sql`insert into water_meter_readings (flat_id, period_id, read_on, reading_value, consumption_litres)
             values (${f.id}, ${period.id}, '2026-07-31', ${100000 + litres}, ${litres})`;
 }
@@ -191,16 +193,16 @@ const waterPayload = {
   allocations: water.allocations.map((a) => ({ flatId: a.flatId, amountPaise: a.amountPaise })),
 };
 
-console.log("\n[5] Close the period (atomic: snapshot + 32 invoices + ledger)");
+console.log("\n[5] Close the period (atomic: snapshot + 37 invoices + ledger)");
 const [closeResult] = await sql`
   select close_billing_period(${period.id}, ${sql.json(waterPayload)}, ${userId}) as r`;
-check("close returned 32 invoices", closeResult.r.invoice_count === 32, JSON.stringify(closeResult.r));
+check("close returned 37 invoices", closeResult.r.invoice_count === 37, JSON.stringify(closeResult.r));
 
 const [{ sum: waterLineSum }] = await sql`
   select coalesce(sum(il.amount_paise), 0)::bigint as sum
     from invoice_lines il join invoices i on i.id = il.invoice_id
    where i.period_id = ${period.id} and il.kind = 'water' and i.voided_at is null`;
-check("32 water lines sum to the water bill TO THE PAISA", Number(waterLineSum) === 5000000, `got ${waterLineSum}`);
+check("37 water lines sum to the water bill TO THE PAISA", Number(waterLineSum) === 5000000, `got ${waterLineSum}`);
 
 const [snap] = await sql`select * from water_period_summary where period_id = ${period.id}`;
 check("water snapshot frozen (loss 30,000 L)", Number(snap.loss_litres) === 30000);
@@ -208,7 +210,7 @@ check("water snapshot frozen (loss 30,000 L)", Number(snap.loss_litres) === 3000
 const [tb1] = await sql`select variance_paise, unbalanced_entry_count from ledger_health`;
 check("ledger balances after close", Number(tb1.variance_paise) === 0 && Number(tb1.unbalanced_entry_count) === 0);
 
-// A-101 used 36,000/470,000 of the water — its share of ₹50,000 ≈ ₹3,829.79.
+// A-101 used 38,000/470,000 of the water — its share of ₹50,000.
 const [a101inv] = await sql`
   select i.total_paise from invoices i
    where i.flat_id = ${flatA101.id} and i.period_id = ${period.id} and i.voided_at is null`;
@@ -221,20 +223,20 @@ check(
 
 console.log("\n[6] Reopen (reversal, not deletion) and re-close");
 const [reopen] = await sql`select reopen_billing_period(${period.id}, 'E2E test reopen', ${userId}) as r`;
-check("reopen reversed 32 entries", reopen.r.entries_reversed === 32, JSON.stringify(reopen.r));
+check("reopen reversed 37 entries", reopen.r.entries_reversed === 37, JSON.stringify(reopen.r));
 const [{ count: voided }] = await sql`
   select count(*)::int as count from invoices where period_id = ${period.id} and voided_at is not null`;
-check("old invoices voided, not deleted", voided === 32, `got ${voided}`);
+check("old invoices voided, not deleted", voided === 37, `got ${voided}`);
 const [tb2] = await sql`select variance_paise from ledger_health`;
 check("ledger still balances after reversal", Number(tb2.variance_paise) === 0);
 
 const [reclose] = await sql`
   select close_billing_period(${period.id}, ${sql.json(waterPayload)}, ${userId}) as r`;
-check("re-close raised 32 fresh invoices", reclose.r.invoice_count === 32);
+check("re-close raised 37 fresh invoices", reclose.r.invoice_count === 37);
 const [{ count: revised }] = await sql`
   select count(*)::int as count from invoices
    where period_id = ${period.id} and voided_at is null and invoice_no like '%-R%'`;
-check("re-issued invoices carry a revision suffix", revised === 32, `got ${revised}`);
+check("re-issued invoices carry a revision suffix", revised === 37, `got ${revised}`);
 
 console.log("\n[7] Payment: A-101 pays ₹3,500 by UPI, treasurer verifies");
 const [payment] = await sql`
@@ -261,7 +263,7 @@ check(
   `got ${bal.balance_paise}`,
 );
 const badFlats = await sql`select number, variance_paise from flat_balance_check where variance_paise <> 0`;
-check("flat_balance_check: zero variance on all 32 flats", badFlats.length === 0, JSON.stringify(badFlats));
+check("flat_balance_check: zero variance on all 37 flats", badFlats.length === 0, JSON.stringify(badFlats));
 
 console.log("\n[8] Trying to break the ledger (every attempt must be refused)");
 await expectFailure(

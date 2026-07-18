@@ -42,8 +42,14 @@ export function WaterPurchaseForm({ periodId }: { periodId: string }) {
           Bill ref (optional)
           <input name="billRef" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
         </label>
+        <label className="flex flex-col gap-1 text-sm">
+          How many identical deliveries?
+          <input name="quantity" type="number" min={1} max={100} defaultValue={1} className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          <span className="text-xs text-muted">e.g. 12 tankers at once — edit each date later.</span>
+        </label>
       </div>
       {state && !state.ok && <p className="mt-2 text-sm text-negative">{state.error}</p>}
+      {state?.ok && state.message && <p className="mt-2 text-sm text-positive">{state.message}</p>}
       <button type="submit" disabled={pending} className="mt-3 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
         {pending ? "Adding…" : "Add water bill"}
       </button>

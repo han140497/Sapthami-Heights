@@ -16,11 +16,12 @@ const realisticPurchases: WaterPurchaseInput[] = [
   { sourceType: "tanker", litres: 40_000, amountPaise: 720_000 }, // ₹7,200 @ 0.18/L
 ];
 
-/** The real building: A block 15 flats, B block 16 flats, 1 penthouse. */
+/** The real building: A block 20 flats (4/floor across G–4, floor 4 = penthouses),
+ *  B block 16 flats (4/floor across 1–4) + 1 penthouse. Total 37. */
 function buildingFlats(): string[] {
   const flats: string[] = [];
   for (const floor of ["G", "1", "2", "3", "4"]) {
-    for (let n = 1; n <= 3; n++) flats.push(`A-${floor}0${n}`);
+    for (let n = 1; n <= 4; n++) flats.push(`A-${floor}0${n}`);
   }
   for (const floor of ["1", "2", "3", "4"]) {
     for (let n = 1; n <= 4; n++) flats.push(`B-${floor}0${n}`);
@@ -30,21 +31,21 @@ function buildingFlats(): string[] {
 }
 
 describe("building shape", () => {
-  it("is 32 flats: 15 in A, 16 in B, 1 penthouse", () => {
+  it("is 37 flats: 20 in A, 16 in B, 1 penthouse", () => {
     const flats = buildingFlats();
-    expect(flats).toHaveLength(32);
-    expect(flats.filter((f) => f.startsWith("A-"))).toHaveLength(15);
+    expect(flats).toHaveLength(37);
+    expect(flats.filter((f) => f.startsWith("A-"))).toHaveLength(20);
     expect(flats.filter((f) => f.startsWith("B-") && f !== "B-PH01")).toHaveLength(16);
     expect(flats).toContain("B-PH01");
   });
 });
 
 describe("the sum invariant", () => {
-  it("allocates the exact total across 32 flats with awkward consumption", () => {
-    // 7 litres each: 32 * 7 = 224 litres into ₹50,000.03 — division is nowhere near clean.
+  it("allocates the exact total across 37 flats with awkward consumption", () => {
+    // 7 litres each: 37 * 7 = 259 litres into ₹50,000.03 — division is nowhere near clean.
     const consumptions = buildingFlats().map((flatId) => ({ flatId, consumptionLitres: 7 }));
     const result = computeWaterPeriod(
-      [{ sourceType: "tanker", litres: 224, amountPaise: 5_000_003 }],
+      [{ sourceType: "tanker", litres: 259, amountPaise: 5_000_003 }],
       consumptions,
     );
     expect(sumAllocated(result)).toBe(5_000_003);
@@ -224,10 +225,11 @@ describe("refusing to guess", () => {
 
 describe("transparency figures", () => {
   it("reports the loss gap and the per-source rates residents can check", () => {
-    // Bought 500,000 L for ₹50,000. Meters account for 470,000 L.
+    // Bought 500,000 L for ₹50,000. Meters account for 470,000 L across 37 flats:
+    // 36 flats at 12,000 L each = 432,000, plus one at 38,000 = 470,000.
     const consumptions = buildingFlats().map((flatId, i) => ({
       flatId,
-      consumptionLitres: i === 0 ? 470_000 - 31 * 14_000 : 14_000,
+      consumptionLitres: i === 0 ? 470_000 - 36 * 12_000 : 12_000,
     }));
     const result = computeWaterPeriod(realisticPurchases, consumptions);
 

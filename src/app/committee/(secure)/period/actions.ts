@@ -59,6 +59,10 @@ const purchaseSchema = z.object({
   purchasedOn: z.string(),
   vendor: z.string().optional(),
   billRef: z.string().optional(),
+  // How many identical deliveries to record at once. Tankers arrive in batches — a
+  // dozen of the same size and price in a week — so this creates N rows in one go.
+  // Each row is independent afterwards and its date/amount can be edited.
+  quantity: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 export async function addWaterPurchase(_prev: unknown, formData: FormData): Promise<ActionResult> {
@@ -72,10 +76,12 @@ export async function addWaterPurchase(_prev: unknown, formData: FormData): Prom
       purchasedOn: formData.get("purchasedOn"),
       vendor: formData.get("vendor") ?? "",
       billRef: formData.get("billRef") ?? "",
+      quantity: formData.get("quantity") ?? 1,
     });
 
     const admin = getServiceClient();
-    const { error } = await admin.from("water_purchases").insert({
+    const count = parsed.quantity ?? 1;
+    const row = {
       period_id: parsed.periodId,
       source_type: parsed.sourceType,
       litres: parsed.litres,
@@ -83,10 +89,54 @@ export async function addWaterPurchase(_prev: unknown, formData: FormData): Prom
       purchased_on: parsed.purchasedOn,
       vendor: parsed.vendor || null,
       bill_ref: parsed.billRef || null,
-    });
+    };
+    const { error } = await admin.from("water_purchases").insert(Array.from({ length: count }, () => ({ ...row })));
     if (error) return { ok: false, error: "Could not add the purchase." };
     revalidatePath(`/committee/period/${parsed.periodId}`);
-    return { ok: true };
+    return { ok: true, message: count > 1 ? `Added ${count} deliveries. Adjust individual dates below if needed.` : undefined };
+  } catch (e) {
+    return authError(e) ?? { ok: false, error: "Check the values and try again." };
+  }
+}
+
+const editPurchaseSchema = z.object({
+  purchaseId: z.string().uuid(),
+  periodId: z.string().uuid(),
+  litres: z.coerce.number().int().positive(),
+  amount: z.string(),
+  purchasedOn: z.string(),
+  vendor: z.string().optional(),
+});
+
+/** Edit one water delivery. Only while the period is open — a closed period's
+ *  purchases are frozen into its snapshot and must not shift under it. */
+export async function editWaterPurchase(_prev: unknown, formData: FormData): Promise<ActionResult> {
+  try {
+    await requireCommittee();
+    const p = editPurchaseSchema.parse({
+      purchaseId: formData.get("purchaseId"),
+      periodId: formData.get("periodId"),
+      litres: formData.get("litres"),
+      amount: formData.get("amount"),
+      purchasedOn: formData.get("purchasedOn"),
+      vendor: formData.get("vendor") ?? "",
+    });
+    const admin = getServiceClient();
+    const { data: period } = await admin.from("billing_periods").select("status").eq("id", p.periodId).maybeSingle();
+    if (period?.status !== "open") return { ok: false, error: "Period is closed — its water bills are frozen." };
+
+    const { error } = await admin
+      .from("water_purchases")
+      .update({
+        litres: p.litres,
+        amount_paise: rupeesToPaise(p.amount),
+        purchased_on: p.purchasedOn,
+        vendor: p.vendor || null,
+      })
+      .eq("id", p.purchaseId);
+    if (error) return { ok: false, error: "Could not update the delivery." };
+    revalidatePath(`/committee/period/${p.periodId}`);
+    return { ok: true, message: "Delivery updated." };
   } catch (e) {
     return authError(e) ?? { ok: false, error: "Check the values and try again." };
   }
@@ -112,7 +162,7 @@ export async function deleteWaterPurchase(periodId: string, purchaseId: string):
 }
 
 /**
- * Save all 32 meter readings for a period in one go. Consumption is stored, not
+ * Save all meter readings for a period in one go. Consumption is stored, not
  * derived on read, because it gets frozen into the invoice at close. `meter_reset`
  * lets a committee member enter consumption directly when subtraction from the
  * prior reading doesn't apply.

@@ -87,7 +87,7 @@ function ratioForDisplay(numerator: bigint, denominator: bigint, dp: number): nu
 /**
  * Allocate the period's total water cost across flats by metered consumption.
  *
- * Uses the largest-remainder method. Naive per-flat rounding would leave the 32
+ * Uses the largest-remainder method. Naive per-flat rounding would leave the 37
  * charges summing to a few paise either side of the true bill, which would then
  * fail the ledger's debit=credit check on every single close. Here each flat first
  * takes the floor of its exact share, and the leftover paise are handed one at a

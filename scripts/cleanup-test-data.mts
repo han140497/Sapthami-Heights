@@ -35,7 +35,27 @@ await sql.begin(async (tx) => {
   await tx`alter table journal_entries disable trigger journal_entries_immutable_trg`;
   await tx`alter table journal_lines disable trigger journal_lines_immutable_trg`;
 
+  // Test payment first. Ordering is forced by two RESTRICT foreign keys:
+  //   payment_allocations -> invoices   (blocks deleting the period's invoices)
+  //   payments -> journal_entries       (blocks deleting the payment's ledger entry)
+  // So: delete the payment (cascading its allocations), which frees both the invoice
+  // and the journal entry, then delete that journal entry.
+  const pay = await tx`select id, journal_entry_id from payments where reference = 'E2E-UPI-REF-001'`;
+  await tx`delete from payments where reference = 'E2E-UPI-REF-001'`;
+  for (const p of pay) {
+    if (p.journal_entry_id) {
+      await tx`delete from journal_lines where entry_id = ${p.journal_entry_id}`;
+      await tx`delete from journal_entries where id = ${p.journal_entry_id}`;
+    }
+  }
+
   if (periodIds.length > 0) {
+    // Any remaining allocations to this period's invoices (defensive — the test
+    // payment above is the only expected one, but a manual test may add others).
+    await tx`
+      delete from payment_allocations where invoice_id in (
+        select id from invoices where period_id = any(${periodIds})
+      )`;
     // Ledger entries tied to this period's invoices, expenses, and water.
     await tx`
       delete from journal_lines where entry_id in (
@@ -58,22 +78,17 @@ await sql.begin(async (tx) => {
     await tx`delete from billing_periods where id = any(${periodIds})`;
   }
 
-  // Test payment and its ledger entry on A-101 (identified by the E2E reference).
-  const pay = await tx`select id, journal_entry_id from payments where reference = 'E2E-UPI-REF-001'`;
-  for (const p of pay) {
-    if (p.journal_entry_id) {
-      await tx`delete from journal_lines where entry_id = ${p.journal_entry_id}`;
-      await tx`delete from journal_entries where id = ${p.journal_entry_id}`;
-    }
-  }
-  await tx`delete from payments where reference = 'E2E-UPI-REF-001'`;
-
   // Test resident on A-101.
   await tx`
     delete from flat_residents where resident_id in (
       select id from residents where phone = '9876543210' and name = 'Test Resident'
     )`;
   await tx`delete from residents where phone = '9876543210' and name = 'Test Resident'`;
+
+  // Flush the deferred balance-check trigger now. It verifies every remaining entry
+  // still balances (we only ever deleted entries whole, so it does), and clears the
+  // pending trigger events that would otherwise block re-enabling the guards below.
+  await tx`set constraints all immediate`;
 
   await tx`alter table journal_entries enable trigger journal_entries_immutable_trg`;
   await tx`alter table journal_lines enable trigger journal_lines_immutable_trg`;
