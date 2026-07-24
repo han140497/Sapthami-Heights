@@ -1,6 +1,6 @@
 # Sapthami Heights — Maintenance & Transparency
 
-A ledger and transparency app for a 32-flat society (Block A: 15, Block B: 16 +
+A ledger and transparency app for a 37-flat society (Block A: 20, Block B: 16 +
 penthouse). **No money moves through it.** The committee records what happened
 offline — dues, payments, expenses, water bought and metered — and every resident can
 see the resulting numbers, including exactly how their water charge was derived.
@@ -10,7 +10,7 @@ see the resulting numbers, including exactly how their water charge was derived.
 - **Double-entry accounting** enforced in the database: every entry balances or the
   transaction is rejected; posted entries are immutable (corrections are reversals).
 - **Blended water billing** from two sources (Manjeera + tankers) with exact-integer,
-  largest-remainder allocation so 32 flat charges sum to the bill to the paisa.
+  largest-remainder allocation so 37 flat charges sum to the bill to the paisa.
 - **Resident access** with no password — block + flat + registered phone.
 - **Committee back-office** — meter readings, water bills, atomic monthly close,
   payments, expenses, defaulters, trial balance and reconciliation.
@@ -42,7 +42,7 @@ Cloudflare Workers via OpenNext.
    npx supabase link --project-ref <your-project-ref>
    npx supabase db push
    ```
-   This creates every table, the ledger invariants, and seeds the 32 flats and chart
+   This creates every table, the ledger invariants, and seeds the 37 flats and chart
    of accounts.
 
 4. **Create a committee login.** In Supabase → Authentication → Users, add a user
@@ -93,5 +93,5 @@ URL + anon key) are non-secret and are inlined into the bundle at build time fro
 
 Block + flat + phone is a **soft gate**: it stops casual snooping on a neighbour's
 dues, not a determined person who knows the number. It's rate-limited by IP and flat.
-This is a deliberate trade for zero-friction access; society-wide figures are open to
-all by design.
+This is a deliberate trade for zero-friction access; society-wide figures are visible
+to every logged-in resident by design.

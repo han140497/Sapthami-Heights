@@ -5,7 +5,7 @@
  * (invoices, invoice lines, ledger entries, water purchases, readings, summary),
  * the test payment on A-101, and the test resident on A-101.
  *
- * Keeps: the 32 flats, blocks, chart of accounts, and committee logins.
+ * Keeps: the 37 flats, blocks, chart of accounts, and committee logins.
  *
  * Run when you are ready to enter real figures:  node scripts/cleanup-test-data.mts
  */
