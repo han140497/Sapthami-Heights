@@ -14,7 +14,11 @@ see the resulting numbers, including exactly how their water charge was derived.
 - **Resident access** with no password — block + flat + registered phone.
 - **Committee back-office** — meter readings, water bills, atomic monthly close,
   payments, expenses, defaulters, trial balance and reconciliation.
-- **Issues** with cost estimates and estimate-vs-actual tracking.
+- **Committee accounts** — self-signup with committee approval, password reset,
+  and self-service password/email change.
+- **Vehicle registry** per flat, managed by residents and the committee.
+- **Issues** with cost estimates, estimate-vs-actual tracking, and resident upvotes
+  ("facing this too") so the committee can see what matters most.
 
 ## Stack
 
@@ -45,12 +49,17 @@ Cloudflare Workers via OpenNext.
    This creates every table, the ledger invariants, and seeds the 37 flats and chart
    of accounts.
 
-4. **Create a committee login.** In Supabase → Authentication → Users, add a user
-   (email + password). Then in the SQL editor, make them a committee member:
+4. **Create the first committee login.** New committee accounts can self-signup at
+   `/committee/signup`, but signups need an existing admin to approve them — so the
+   very first one has to be bootstrapped by hand. In Supabase → Authentication →
+   Users, add a user (email + password). Then in the SQL editor, make them a
+   committee member:
    ```sql
    insert into committee_members (user_id, role, from_date)
-   values ('<the-auth-user-id>', 'treasurer', current_date);
+   values ('<the-auth-user-id>', 'admin', current_date);
    ```
+   From there, further committee members can sign up themselves and be approved
+   from the Admin page's pending-approvals list.
 
 5. **Run:**
    ```bash
