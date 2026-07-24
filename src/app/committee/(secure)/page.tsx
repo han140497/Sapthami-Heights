@@ -98,7 +98,7 @@ export default async function CommitteeDashboard() {
           {defaulters.length === 0 ? (
             <EmptyState title="No dues outstanding" hint="Every flat is up to date." />
           ) : (
-            <Card className="p-0">
+            <Card className="overflow-x-auto p-0">
               <table className="w-full text-sm">
                 <tbody>
                   {defaulters.slice(0, 10).map((d) => (

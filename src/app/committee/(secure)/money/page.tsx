@@ -39,7 +39,7 @@ export default async function MoneyPage() {
           {payments.length === 0 ? (
             <EmptyState title="No payments yet" />
           ) : (
-            <Card className="p-0">
+            <Card className="overflow-x-auto p-0">
               <table className="w-full text-sm">
                 <tbody>
                   {payments.map((p) => (
@@ -66,7 +66,7 @@ export default async function MoneyPage() {
           {expenses.length === 0 ? (
             <EmptyState title="No expenses yet" />
           ) : (
-            <Card className="p-0">
+            <Card className="overflow-x-auto p-0">
               <table className="w-full text-sm">
                 <tbody>
                   {(expenses as {
@@ -96,7 +96,7 @@ export default async function MoneyPage() {
         {defaulters.length === 0 ? (
           <EmptyState title="Every flat is up to date" />
         ) : (
-          <Card className="p-0">
+          <Card className="overflow-x-auto p-0">
             <table className="w-full text-sm">
               <tbody>
                 {defaulters.map((d) => (

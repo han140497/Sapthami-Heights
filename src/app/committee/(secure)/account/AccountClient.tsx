@@ -52,7 +52,7 @@ export function ChangePasswordForm() {
       </div>
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-negative dark:bg-red-950/40">{error}</p>}
       {done && <p className="rounded-lg border border-accent/40 bg-accent/5 px-3 py-2 text-sm">Password updated. Use it next time you sign in.</p>}
-      <button type="submit" disabled={busy} className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50">
+      <button type="submit" disabled={busy} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50">
         {busy ? "Updating…" : "Update password"}
       </button>
     </form>

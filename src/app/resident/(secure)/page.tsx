@@ -47,7 +47,7 @@ export default async function MyFlatPage() {
           <h2 className="mb-3 text-lg font-semibold">
             Latest bill — {latest.invoice_no}
           </h2>
-          <Card className="p-0">
+          <Card className="overflow-x-auto p-0">
             <table className="w-full text-sm">
               <tbody>
                 {latestLines.map((line) => (
@@ -83,7 +83,7 @@ export default async function MyFlatPage() {
           {invoices.length === 0 ? (
             <EmptyState title="No bills yet" hint="Your first bill appears after the committee closes a month." />
           ) : (
-            <Card className="p-0">
+            <Card className="overflow-x-auto p-0">
               <table className="w-full text-sm">
                 <tbody>
                   {invoices.map((inv) => (
@@ -104,7 +104,7 @@ export default async function MyFlatPage() {
           {payments.length === 0 ? (
             <EmptyState title="No payments recorded yet" />
           ) : (
-            <Card className="p-0">
+            <Card className="overflow-x-auto p-0">
               <table className="w-full text-sm">
                 <tbody>
                   {payments.map((p) => (

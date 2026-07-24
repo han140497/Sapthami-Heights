@@ -49,7 +49,7 @@ export function SignupForm() {
         <input id="confirm" name="confirm" type="password" required minLength={8} className="rounded-lg border border-border bg-surface px-3 py-2.5 text-sm" />
       </div>
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-negative dark:bg-red-950/40">{error}</p>}
-      <button type="submit" disabled={pending} className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50">
+      <button type="submit" disabled={pending} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50">
         {pending ? "Creating…" : "Create account"}
       </button>
       <p className="text-center text-sm text-muted">

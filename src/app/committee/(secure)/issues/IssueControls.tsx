@@ -66,7 +66,7 @@ export function AddEstimateForm({ issueId }: { issueId: string }) {
       </div>
       <input name="description" placeholder="What's covered (optional)" className="rounded border border-border bg-surface px-2 py-1.5 text-sm" />
       {state && !state.ok && <p className="text-sm text-negative">{state.error}</p>}
-      <button type="submit" disabled={pending} className="self-start rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
+      <button type="submit" disabled={pending} className="self-start rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
         {pending ? "Adding…" : "Add quote"}
       </button>
     </form>
@@ -79,6 +79,8 @@ export function EstimateDecision({ estimateId, issueId, status }: { estimateId: 
   if (status !== "proposed") return null;
 
   function decide(decision: "approved" | "rejected") {
+    if (decision === "rejected" && !confirm("Are you sure you want to reject this quote?")) return;
+    if (decision === "approved" && !confirm("Approve this quote? This will set the issue's estimated cost.")) return;
     start(async () => {
       await decideEstimate(estimateId, issueId, decision);
       router.refresh();

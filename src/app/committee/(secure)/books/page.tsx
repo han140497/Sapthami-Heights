@@ -70,7 +70,7 @@ export default async function BooksPage() {
       {withActivity.length === 0 ? (
         <EmptyState title="No ledger activity yet" hint="Balances appear once you close a period or record money." />
       ) : (
-        <Card className="p-0">
+        <Card className="overflow-x-auto p-0">
           <table className="w-full text-sm">
             <thead className="border-b border-border text-xs uppercase text-muted">
               <tr>

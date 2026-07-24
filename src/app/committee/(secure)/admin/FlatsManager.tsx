@@ -43,7 +43,7 @@ export function FlatsManager({ flats }: { flats: Flat[] }) {
     <section className="mt-6">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-semibold">Flats ({flats.filter((f) => f.isActive).length} active)</h2>
-        <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90">
+        <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
           <Home className="h-4 w-4" /> Add flat
         </button>
       </div>
@@ -145,7 +145,7 @@ export function FlatsManager({ flats }: { flats: Flat[] }) {
                       </button>
                       <button
                         onClick={() => {
-                          if (confirm(`Delete ${f.number}? If it has billing history it will be deactivated instead, to protect the books.`))
+                          if (!confirm(`Delete ${f.number}? If it has billing history it will be deactivated instead, to protect the books.`)) return;
                             run(() => deleteFlat(f.id));
                         }}
                         disabled={pending}

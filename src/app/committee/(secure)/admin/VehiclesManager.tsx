@@ -46,7 +46,7 @@ export function VehiclesManager({
     <section className="mt-6">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-semibold">Vehicles ({vehicles.length})</h2>
-        <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90">
+        <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
           <Car className="h-4 w-4" /> Add vehicle
         </button>
       </div>
@@ -122,7 +122,7 @@ export function VehiclesManager({
                     <td className="px-4 py-2.5 text-muted">{v.parking_slot ?? "—"}</td>
                     <td className="px-2 py-2.5 text-right">
                       <button
-                        onClick={() => { if (confirm(`Remove ${v.registration_number}?`)) run(() => removeVehicleAsAdmin(v.id)); }}
+                        onClick={() => { if (!confirm(`Remove ${v.registration_number}?`)) return; run(() => removeVehicleAsAdmin(v.id)); }}
                         disabled={pending}
                         className="text-sm text-negative hover:underline disabled:opacity-50"
                       >

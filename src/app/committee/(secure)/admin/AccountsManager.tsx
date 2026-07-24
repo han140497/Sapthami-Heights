@@ -34,7 +34,7 @@ export function AccountsManager({ accounts }: { accounts: Account[] }) {
     <section className="mt-6">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-semibold">Chart of accounts</h2>
-        <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90">
+        <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
           <BookPlus className="h-4 w-4" /> Add account
         </button>
       </div>
@@ -126,7 +126,7 @@ export function AccountsManager({ accounts }: { accounts: Account[] }) {
                           const msg = a.inUse
                             ? `${a.code} has ledger entries and will be deactivated (not deleted) to keep the books intact. Continue?`
                             : `Delete account ${a.code} — ${a.name}?`;
-                          if (confirm(msg)) run(() => deleteAccount(a.id));
+                          if (!confirm(msg)) return; run(() => deleteAccount(a.id));
                         }}
                         disabled={pending}
                         className="text-sm text-negative hover:underline disabled:opacity-50"

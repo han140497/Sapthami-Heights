@@ -126,12 +126,13 @@ export function VerifyButton({ paymentId }: { paymentId: string }) {
   const [pending, start] = useTransition();
   return (
     <button
-      onClick={() =>
+      onClick={() => {
+        if (!confirm("Verify this payment? This will post it to the ledger.")) return;
         start(async () => {
           await verifyPayment(paymentId);
           router.refresh();
-        })
-      }
+        });
+      }}
       disabled={pending}
       className="rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
     >

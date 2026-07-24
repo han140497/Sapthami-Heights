@@ -53,7 +53,7 @@ export function VehiclesClient({ vehicles }: { vehicles: Vehicle[] }) {
     <div className="mt-4">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-sm text-muted">{vehicles.length} registered</span>
-        <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:opacity-90">
+        <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:opacity-90">
           <Plus className="h-4 w-4" /> Add vehicle
         </button>
       </div>
@@ -63,35 +63,35 @@ export function VehiclesClient({ vehicles }: { vehicles: Vehicle[] }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm">
               Type
-              <select name="vehicleType" className="rounded-lg border border-border bg-background px-3 py-2 text-sm capitalize">
+              <select name="vehicleType" className="rounded-lg border border-border bg-background px-4 py-2 text-sm capitalize">
                 {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </label>
             <label className="flex flex-col gap-1 text-sm">
               Registration number
-              <input name="registrationNumber" required placeholder="TS09AB1234" className="rounded-lg border border-border bg-background px-3 py-2 text-sm uppercase" />
+              <input name="registrationNumber" required placeholder="TS09AB1234" className="rounded-lg border border-border bg-background px-4 py-2 text-sm uppercase" />
             </label>
             <label className="flex flex-col gap-1 text-sm">
               Make &amp; model (optional)
-              <input name="makeModel" placeholder="Maruti Swift" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+              <input name="makeModel" placeholder="Maruti Swift" className="rounded-lg border border-border bg-background px-4 py-2 text-sm" />
             </label>
             <label className="flex flex-col gap-1 text-sm">
               Colour (optional)
-              <input name="color" placeholder="White" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+              <input name="color" placeholder="White" className="rounded-lg border border-border bg-background px-4 py-2 text-sm" />
             </label>
             <label className="flex flex-col gap-1 text-sm">
               Parking slot (optional)
-              <input name="parkingSlot" placeholder="P-12" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+              <input name="parkingSlot" placeholder="P-12" className="rounded-lg border border-border bg-background px-4 py-2 text-sm" />
             </label>
           </div>
-          <button type="submit" disabled={pending} className="mt-3 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
+          <button type="submit" disabled={pending} className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:opacity-90 disabled:opacity-50">
             {pending ? "Adding…" : "Add vehicle"}
           </button>
         </form>
       )}
 
       {notice && (
-        <div className="mb-3 flex items-start justify-between gap-3 rounded-lg border border-accent/40 bg-accent/5 px-3 py-2 text-sm">
+        <div className="mb-3 flex items-start justify-between gap-3 rounded-lg border border-accent/40 bg-primary/5 px-4 py-2 text-sm">
           <span>{notice}</span>
           <button onClick={() => setNotice(null)} className="text-muted hover:text-foreground"><X className="h-4 w-4" /></button>
         </div>
@@ -109,7 +109,7 @@ export function VehiclesClient({ vehicles }: { vehicles: Vehicle[] }) {
             <div key={v.id} className="flex items-start justify-between rounded-xl border border-border bg-surface p-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <Car className="h-4 w-4 text-accent" />
+                  <Car className="h-4 w-4 text-primary" />
                   <span className="font-semibold tabular">{v.registration_number}</span>
                 </div>
                 <div className="mt-1 text-sm capitalize text-muted">

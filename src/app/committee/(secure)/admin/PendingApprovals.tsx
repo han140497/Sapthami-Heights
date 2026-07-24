@@ -82,7 +82,7 @@ export function PendingApprovals({ pending }: { pending: Pending[] }) {
                       Approve
                     </button>
                     <button
-                      onClick={() => { if (confirm(`Reject and delete the account for ${p.email}?`)) run(() => rejectPendingMember(p.userId)); }}
+                      onClick={() => { if (!confirm(`Reject and delete the account for ${p.email}?`)) return; run(() => rejectPendingMember(p.userId)); }}
                       disabled={pendingTx}
                       className="text-sm text-negative hover:underline disabled:opacity-50"
                     >

@@ -38,7 +38,7 @@ export function CloseButton({ periodId, blocked }: { periodId: string; blocked: 
       <div>
         <button
           onClick={() => setConfirm(true)}
-          className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg hover:opacity-90"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:opacity-90"
         >
           Close this period & raise bills
         </button>

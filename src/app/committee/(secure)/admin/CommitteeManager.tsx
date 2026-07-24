@@ -81,7 +81,7 @@ export function CommitteeManager({
         <h2 className="text-sm font-semibold">Committee &amp; roles</h2>
         <button
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90"
+          className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
         >
           <UserPlus className="h-4 w-4" /> Add member
         </button>

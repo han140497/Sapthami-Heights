@@ -67,7 +67,7 @@ export default async function SocietyPage() {
         {periods.length === 0 ? (
           <EmptyState title="No periods yet" />
         ) : (
-          <Card className="p-0">
+          <Card className="overflow-x-auto p-0">
             <table className="w-full text-sm">
               <thead className="text-xs uppercase text-muted">
                 <tr className="border-b border-border">

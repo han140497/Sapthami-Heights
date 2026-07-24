@@ -117,7 +117,7 @@ export function LoginForm({ flats }: { flats: FlatOption[] }) {
       <button
         type="submit"
         disabled={submitting || !block || !flatNumber || !phone}
-        className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg transition hover:opacity-90 disabled:opacity-50"
+        className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-fg transition hover:opacity-90 disabled:opacity-50"
       >
         {submitting ? "Checking…" : "View my flat"}
       </button>

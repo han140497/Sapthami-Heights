@@ -63,7 +63,7 @@ export function CommitteeLoginForm() {
       <button
         type="submit"
         disabled={submitting}
-        className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+        className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
       >
         {submitting ? "Signing in…" : "Sign in"}
       </button>

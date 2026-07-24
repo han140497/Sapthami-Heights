@@ -56,7 +56,7 @@ export function PurchasesList({
   if (purchases.length === 0) return null;
 
   return (
-    <div className="mb-3 overflow-hidden rounded-xl border border-border bg-surface">
+    <div className="mb-3 overflow-x-auto rounded-xl border border-border bg-surface">
       {error && <p className="border-b border-border px-4 py-2 text-sm text-negative">{error}</p>}
       <table className="w-full text-sm">
         <thead className="border-b border-border text-xs uppercase text-muted">

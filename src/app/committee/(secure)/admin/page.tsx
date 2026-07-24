@@ -122,7 +122,7 @@ export default async function AdminPage() {
       </PageHeader>
 
       {/* Resident logins — every committee member can manage these. */}
-      <Card className="p-0">
+      <Card className="overflow-x-auto p-0">
         <div className="border-b border-border px-4 py-3 text-sm font-semibold">Resident logins</div>
         <div className="max-h-[22rem] overflow-auto">
           <table className="w-full text-sm">
