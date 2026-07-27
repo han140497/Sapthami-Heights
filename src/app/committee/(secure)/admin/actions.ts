@@ -57,36 +57,118 @@ export async function setPrimaryResident(_prev: unknown, formData: FormData): Pr
     }
 
     const today = new Date().toISOString().slice(0, 10);
-    await admin
+    const { count: existingCount } = await admin
       .from("flat_residents")
-      .update({ to_date: today })
+      .select("id", { count: "exact", head: true })
       .eq("flat_id", parsed.flatId)
-      .is("to_date", null)
-      .eq("is_primary", true);
+      .is("to_date", null);
+
+    const isPrimary = (existingCount ?? 0) === 0;
 
     const { error: frErr } = await admin.from("flat_residents").insert({
       flat_id: parsed.flatId,
       resident_id: resident.id,
       role: parsed.role,
-      is_primary: true,
+      is_primary: isPrimary,
       from_date: today,
     });
     if (frErr) return { ok: false, error: "Saved the resident but could not link to the flat." };
 
     revalidatePath("/committee/admin");
-    return { ok: true, message: "Primary resident set. This flat can now log in." };
+    return { ok: true, message: `Resident added to flat. This phone can now log in.` };
   } catch (e) {
     return authError(e) ?? { ok: false, error: "Check the details and try again." };
   }
 }
 
-/**
- * Remove the current primary resident registered to a flat. This is what was missing:
- * once set, there was no way to take a resident off a flat. It ends the flat link and
- * deletes the resident record if nothing else references it (a wrongly-added resident
- * has no financial history — flats are billed, not people — so this is a safe delete).
- * The flat can log in again only once a new primary resident is set.
- */
+const updateResidentSchema = z.object({
+  residentId: z.string().uuid(),
+  flatId: z.string().uuid(),
+  name: z.string().trim().min(1).max(120),
+  phone: z.string().trim().min(10).max(15),
+  role: z.enum(["owner", "tenant"]),
+  email: z.string().email().optional().or(z.literal("")),
+});
+
+export async function updateResident(_prev: unknown, formData: FormData): Promise<ActionResult> {
+  try {
+    await requireRole("president", "secretary", "treasurer");
+    const parsed = updateResidentSchema.parse({
+      residentId: formData.get("residentId"),
+      flatId: formData.get("flatId"),
+      name: formData.get("name"),
+      phone: formData.get("phone"),
+      role: formData.get("role"),
+      email: formData.get("email") ?? "",
+    });
+
+    const admin = getServiceClient();
+
+    const { error: rErr } = await admin
+      .from("residents")
+      .update({
+        name: parsed.name,
+        phone: parsed.phone,
+        email: parsed.email || null,
+      })
+      .eq("id", parsed.residentId);
+
+    if (rErr) {
+      return {
+        ok: false,
+        error: rErr.message?.includes("valid 10-digit")
+          ? "That doesn't look like a valid 10-digit mobile number."
+          : "Could not update the resident.",
+      };
+    }
+
+    await admin
+      .from("flat_residents")
+      .update({ role: parsed.role })
+      .eq("flat_id", parsed.flatId)
+      .eq("resident_id", parsed.residentId)
+      .is("to_date", null);
+
+    revalidatePath("/committee/admin");
+    return { ok: true, message: "Resident details updated." };
+  } catch (e) {
+    return authError(e) ?? { ok: false, error: "Check the details and try again." };
+  }
+}
+
+export async function removeResidentFromFlat(flatId: string, residentId: string): Promise<ActionResult> {
+  try {
+    await requireRole("president", "secretary", "treasurer");
+    const admin = getServiceClient();
+
+    const { data: link } = await admin
+      .from("flat_residents")
+      .select("id")
+      .eq("flat_id", flatId)
+      .eq("resident_id", residentId)
+      .is("to_date", null)
+      .maybeSingle();
+
+    if (!link) return { ok: false, error: "Resident link not found." };
+
+    await admin.from("flat_residents").delete().eq("id", link.id);
+
+    const { count } = await admin
+      .from("flat_residents")
+      .select("id", { count: "exact", head: true })
+      .eq("resident_id", residentId);
+
+    if ((count ?? 0) === 0) {
+      await admin.from("residents").delete().eq("id", residentId);
+    }
+
+    revalidatePath("/committee/admin");
+    return { ok: true, message: "Resident removed from flat." };
+  } catch (e) {
+    return authError(e) ?? { ok: false, error: "Could not remove resident." };
+  }
+}
+
 export async function removePrimaryResident(flatId: string): Promise<ActionResult> {
   try {
     await requireRole("president", "secretary", "treasurer");
@@ -97,15 +179,11 @@ export async function removePrimaryResident(flatId: string): Promise<ActionResul
       .select("id, resident_id")
       .eq("flat_id", flatId)
       .is("to_date", null)
-      .eq("is_primary", true)
       .maybeSingle();
     if (!current) return { ok: false, error: "This flat has no registered resident to remove." };
 
-    // FK order: flat_residents references residents (ON DELETE RESTRICT), so the link
-    // must go before the resident row.
     await admin.from("flat_residents").delete().eq("id", current.id);
 
-    // Delete the resident only if no other flat still links to them.
     const { count } = await admin
       .from("flat_residents")
       .select("id", { count: "exact", head: true })
@@ -115,7 +193,7 @@ export async function removePrimaryResident(flatId: string): Promise<ActionResul
     }
 
     revalidatePath("/committee/admin");
-    return { ok: true, message: "Resident removed. This flat can no longer log in until a new resident is set." };
+    return { ok: true, message: "Resident removed." };
   } catch (e) {
     return authError(e) ?? { ok: false, error: "Could not remove the resident." };
   }
@@ -222,6 +300,7 @@ export async function createFlat(_prev: unknown, formData: FormData): Promise<Ac
 
 const flatEditSchema = z.object({
   flatId: z.string().uuid(),
+  number: z.string().trim().min(1).max(20).regex(/^[A-Za-z0-9-]+$/, "Use letters, numbers and hyphens only").optional(),
   flatType: z.enum(["2BHK", "3BHK", "penthouse"]),
   areaSqft: z.coerce.number().int().nonnegative().optional(),
 });
@@ -231,17 +310,32 @@ export async function updateFlat(_prev: unknown, formData: FormData): Promise<Ac
     await requireAdmin();
     const p = flatEditSchema.parse({
       flatId: formData.get("flatId"),
+      number: formData.get("number") ?? undefined,
       flatType: formData.get("flatType"),
       areaSqft: formData.get("areaSqft") || 0,
     });
     const admin = getServiceClient();
+
+    const updates: Record<string, unknown> = {
+      flat_type: p.flatType,
+      area_sqft: p.areaSqft || null,
+    };
+    if (p.number) updates.number = p.number.toUpperCase();
+
     const { error } = await admin
       .from("flats")
-      .update({ flat_type: p.flatType, area_sqft: p.areaSqft || null })
+      .update(updates)
       .eq("id", p.flatId);
-    if (error) return { ok: false, error: "Could not update the flat." };
+
+    if (error) {
+      return {
+        ok: false,
+        error: error.code === "23505" ? `Flat number ${p.number?.toUpperCase()} already exists.` : "Could not update the flat.",
+      };
+    }
+
     revalidatePath("/committee/admin");
-    return { ok: true, message: "Flat updated." };
+    return { ok: true, message: "Flat details updated." };
   } catch (e) {
     return authError(e) ?? { ok: false, error: "Could not update the flat." };
   }

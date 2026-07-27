@@ -342,3 +342,47 @@ export async function deletePeriod(periodId: string): Promise<ActionResult> {
   }
 }
 
+const updateRatesSchema = z.object({
+  periodId: z.string().uuid(),
+  maintenance: z.string(),
+  sinkingFund: z.string().optional(),
+});
+
+export async function updatePeriodAmounts(_prev: unknown, formData: FormData): Promise<ActionResult> {
+  try {
+    await requireCommittee();
+    const parsed = updateRatesSchema.parse({
+      periodId: formData.get("periodId"),
+      maintenance: formData.get("maintenance"),
+      sinkingFund: formData.get("sinkingFund") ?? "0",
+    });
+
+    const admin = getServiceClient();
+    const { data: period } = await admin
+      .from("billing_periods")
+      .select("status")
+      .eq("id", parsed.periodId)
+      .maybeSingle();
+
+    if (period?.status !== "open") {
+      return { ok: false, error: "Period is closed — rates are frozen." };
+    }
+
+    const { error } = await admin
+      .from("billing_periods")
+      .update({
+        maintenance_paise: rupeesToPaise(parsed.maintenance),
+        sinking_fund_paise: parsed.sinkingFund ? rupeesToPaise(parsed.sinkingFund) : 0,
+      })
+      .eq("id", parsed.periodId);
+
+    if (error) return { ok: false, error: "Could not update period rates." };
+
+    revalidatePath("/committee/period");
+    revalidatePath(`/committee/period/${parsed.periodId}`);
+    return { ok: true, message: "Period rates updated successfully." };
+  } catch (e) {
+    return authError(e) ?? { ok: false, error: "Check amounts and try again." };
+  }
+}
+

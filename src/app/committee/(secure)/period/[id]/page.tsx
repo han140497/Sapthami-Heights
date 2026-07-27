@@ -8,6 +8,7 @@ import { ReadingsGrid, type ReadingRow } from "./ReadingsGrid";
 import { WaterPurchaseForm } from "./WaterPurchaseForm";
 import { CloseButton, ReopenButton } from "./CloseControls";
 import { PurchasesList } from "./PurchasesList";
+import { EditPeriodRatesForm } from "./EditPeriodRatesForm";
 
 export const dynamic = "force-dynamic";
 
@@ -91,12 +92,24 @@ export default async function PeriodDetailPage({ params }: { params: Promise<{ i
       <Link href="/committee/period" className="mb-4 inline-block text-sm text-muted hover:underline">
         ← All periods
       </Link>
-      <PageHeader
-        title={`${MONTHS[period.month]} ${period.year}`}
-        subtitle={`Maintenance ${formatPaise(period.maintenance_paise)}${period.sinking_fund_paise > 0 ? ` + corpus ${formatPaise(period.sinking_fund_paise)}` : ""} per flat`}
-      >
-        <Badge value={period.status} />
-      </PageHeader>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight">{MONTHS[period.month]} {period.year}</h1>
+            <Badge value={period.status} />
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
+            <span>Maintenance {formatPaise(period.maintenance_paise)}{period.sinking_fund_paise > 0 ? ` + corpus ${formatPaise(period.sinking_fund_paise)}` : ""} per flat</span>
+            {isOpen && (
+              <EditPeriodRatesForm
+                periodId={id}
+                currentMaintenancePaise={period.maintenance_paise}
+                currentCorpusPaise={period.sinking_fund_paise}
+              />
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Water purchases */}
       <section className="mb-8">

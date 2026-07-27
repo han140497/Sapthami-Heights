@@ -88,24 +88,24 @@ export async function verifyFlatLogin(
     return { ok: false, reason: "not_found" };
   }
 
-  // The primary current resident's phone is the credential. Normalised at write
-  // time, so a straight equality compare is safe.
-  const { data: primary } = await admin
+  // Any registered active resident's phone (owner or tenant) is a valid credential.
+  const { data: activeResidents } = await admin
     .from("flat_residents")
     .select("residents!inner(phone)")
     .eq("flat_id", flat.id)
-    .eq("is_primary", true)
-    .is("to_date", null)
-    .maybeSingle();
+    .is("to_date", null);
 
-  const registeredPhone = (primary as { residents?: { phone?: string } } | null)?.residents?.phone;
-  if (!registeredPhone) {
+  const registeredPhones = (activeResidents ?? [])
+    .map((r) => (r as { residents?: { phone?: string } }).residents?.phone)
+    .filter((p): p is string => Boolean(p));
+
+  if (registeredPhones.length === 0) {
     await record(false);
     return { ok: false, reason: "no_resident" };
   }
 
   const normalised = phone.replace(/\D/g, "").replace(/^91/, "").replace(/^0/, "");
-  if (normalised !== registeredPhone) {
+  if (!registeredPhones.includes(normalised)) {
     await record(false);
     return { ok: false, reason: "phone_mismatch" };
   }

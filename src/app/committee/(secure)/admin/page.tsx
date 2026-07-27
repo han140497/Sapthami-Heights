@@ -2,7 +2,7 @@ import { getServiceClient } from "@/lib/supabase/admin";
 import { getCommitteeIdentity } from "@/lib/supabase/committee";
 import { Card, PageHeader, Badge } from "@/components/ui";
 import { ResidentForm } from "./ResidentForm";
-import { RemoveResidentButton } from "./RemoveResidentButton";
+import { ResidentActions, ResidentItem } from "./ResidentActions";
 import { FlatsManager } from "./FlatsManager";
 import { AccountsManager } from "./AccountsManager";
 import { CommitteeManager } from "./CommitteeManager";
@@ -16,19 +16,32 @@ export default async function AdminPage() {
   const identity = await getCommitteeIdentity();
   const isAdmin = identity?.role === "admin";
 
-  // --- Flats + primary residents (resident registration is open to all committee) ---
+  // --- Flats + active residents (owner & tenant; resident registration open to committee) ---
   const { data: flats } = await admin
     .from("flats")
-    .select("id, number, floor, flat_type, is_active, blocks(code), flat_residents(is_primary, to_date, role, residents(name, phone))")
+    .select("id, number, floor, flat_type, is_active, blocks(code), flat_residents(id, is_primary, to_date, role, resident_id, residents(id, name, phone, email))")
     .order("number");
 
   const flatRows = (flats ?? []).map((f) => {
-    const primary = (f.flat_residents as unknown as {
+    const activeResidents: ResidentItem[] = ((f.flat_residents as unknown as {
+      id: string;
       is_primary: boolean;
       to_date: string | null;
       role: string;
-      residents: { name: string; phone: string } | null;
-    }[])?.find((fr) => fr.is_primary && fr.to_date == null);
+      resident_id: string;
+      residents: { id: string; name: string; phone: string; email: string | null } | null;
+    }[]) ?? [])
+      .filter((fr) => fr.to_date == null && fr.residents != null)
+      .map((fr) => ({
+        linkId: fr.id,
+        residentId: fr.resident_id,
+        name: fr.residents!.name,
+        phone: fr.residents!.phone,
+        email: fr.residents!.email ?? null,
+        role: fr.role,
+        isPrimary: fr.is_primary,
+      }));
+
     return {
       id: f.id as string,
       number: f.number as string,
@@ -36,13 +49,12 @@ export default async function AdminPage() {
       blockCode: (f.blocks as unknown as { code: string })?.code ?? "",
       type: f.flat_type as string,
       isActive: f.is_active as boolean,
-      resident: primary?.residents ?? null,
-      role: primary?.role,
+      residents: activeResidents,
     };
   });
 
   const activeFlats = flatRows.filter((r) => r.isActive);
-  const withResident = activeFlats.filter((r) => r.resident).length;
+  const withResident = activeFlats.filter((r) => r.residents.length > 0).length;
   const flatOptions = activeFlats.map((r) => ({ id: r.id, number: r.number }));
 
   // --- Vehicles across the society (committee-wide view) ---
@@ -67,7 +79,6 @@ export default async function AdminPage() {
 
   if (isAdmin) {
     const { data: accounts } = await admin.from("accounts").select("id, code, name, type, is_active").order("code");
-    // Which accounts have ledger lines (so the UI can show delete vs deactivate).
     const { data: usedRaw } = await admin.from("journal_lines").select("account_id");
     const used = new Set((usedRaw ?? []).map((r) => r.account_id as string));
     accountRows = (accounts ?? []).map((a) => ({
@@ -94,9 +105,6 @@ export default async function AdminPage() {
       fromDate: m.from_date as string,
     }));
 
-    // Pending = an auth user with NO committee_members row at all (a fresh self-signup
-    // that hasn't been approved). A removed member keeps a dated-out row, so they never
-    // resurface here.
     const { data: everMembers } = await admin.from("committee_members").select("user_id");
     const everMemberIds = new Set((everMembers ?? []).map((m) => m.user_id as string));
     pendingRows = (userList?.users ?? [])
@@ -114,26 +122,24 @@ export default async function AdminPage() {
         title="Admin"
         subtitle={
           isAdmin
-            ? `Full control of the society. ${withResident} of ${activeFlats.length} flats have a resident who can log in.`
-            : `${withResident} of ${activeFlats.length} flats have a registered resident who can log in.`
+            ? `Full control of the society. ${withResident} of ${activeFlats.length} flats have registered resident(s) who can log in.`
+            : `${withResident} of ${activeFlats.length} flats have registered resident(s) who can log in.`
         }
       >
         <ResidentForm flats={flatOptions} />
       </PageHeader>
 
-      {/* Resident logins — every committee member can manage these. */}
+      {/* Resident logins — support both Owner and Tenant per flat */}
       <Card className="overflow-x-auto p-0">
-        <div className="border-b border-border px-4 py-3 text-sm font-semibold">Resident logins</div>
-        <div className="max-h-[22rem] overflow-auto">
+        <div className="border-b border-border px-4 py-3 text-sm font-semibold">Registered Resident Logins</div>
+        <div className="max-h-[28rem] overflow-auto">
           <table className="w-full text-sm">
             <thead className="sticky top-0 border-b border-border bg-surface text-xs uppercase text-muted">
               <tr>
                 <th className="px-4 py-2 text-left font-medium">Flat</th>
                 <th className="px-4 py-2 text-left font-medium">Type</th>
-                <th className="px-4 py-2 text-left font-medium">Primary resident</th>
-                <th className="px-4 py-2 text-left font-medium">Phone (login)</th>
-                <th className="px-4 py-2 text-left font-medium">Login?</th>
-                <th className="px-4 py-2 text-right font-medium">Manage</th>
+                <th className="px-4 py-2 text-left font-medium">Registered residents</th>
+                <th className="px-4 py-2 text-left font-medium">Login status</th>
               </tr>
             </thead>
             <tbody>
@@ -142,17 +148,27 @@ export default async function AdminPage() {
                   <td className="px-4 py-2.5 font-medium">{r.number}</td>
                   <td className="px-4 py-2.5 capitalize text-muted">{r.type}</td>
                   <td className="px-4 py-2.5">
-                    {r.resident?.name ?? <span className="text-muted">—</span>}
-                    {r.role && <span className="ml-2 text-xs capitalize text-muted">({r.role})</span>}
-                  </td>
-                  <td className="px-4 py-2.5 tabular text-muted">{r.resident?.phone ?? "—"}</td>
-                  <td className="px-4 py-2.5">{r.resident ? <Badge value="verified" /> : <Badge value="open" />}</td>
-                  <td className="px-4 py-2.5 text-right">
-                    {r.resident ? (
-                      <RemoveResidentButton flatId={r.id} flatNumber={r.number} />
+                    {r.residents.length > 0 ? (
+                      <div className="space-y-2">
+                        {r.residents.map((res) => (
+                          <div key={res.residentId} className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-1.5 last:border-0 last:pb-0">
+                            <div>
+                              <span className="font-medium text-foreground">{res.name}</span>
+                              <span className="ml-2 rounded bg-background px-1.5 py-0.5 text-xs font-semibold capitalize text-muted">
+                                {res.role}
+                              </span>
+                              <span className="ml-2 font-mono text-xs text-muted">{res.phone}</span>
+                            </div>
+                            <ResidentActions flatId={r.id} flatNumber={r.number} resident={res} />
+                          </div>
+                        ))}
+                      </div>
                     ) : (
-                      <span className="text-muted">—</span>
+                      <span className="text-muted">— No resident added —</span>
                     )}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {r.residents.length > 0 ? <Badge value="verified" /> : <Badge value="open" />}
                   </td>
                 </tr>
               ))}

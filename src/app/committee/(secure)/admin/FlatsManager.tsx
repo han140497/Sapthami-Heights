@@ -15,7 +15,7 @@ type Flat = {
   blockCode: string;
   type: string;
   isActive: boolean;
-  resident: { name: string; phone: string } | null;
+  residents?: unknown;
 };
 
 export function FlatsManager({ flats }: { flats: Flat[] }) {
@@ -110,20 +110,34 @@ export function FlatsManager({ flats }: { flats: Flat[] }) {
             <tbody>
               {flats.map((f) => (
                 <tr key={f.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-2.5 font-medium">{f.number}</td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-4 py-2.5 font-medium">
                     {editing === f.id ? (
                       <form
+                        id={`edit-flat-${f.id}`}
                         action={(fd) => run(() => updateFlat(null, fd), () => setEditing(null))}
                         className="flex items-center gap-2"
                       >
                         <input type="hidden" name="flatId" value={f.id} />
-                        <select name="flatType" defaultValue={f.type} className="rounded-md border border-border bg-background px-2 py-1 text-sm">
+                        <input
+                          name="number"
+                          defaultValue={f.number}
+                          required
+                          className="w-24 rounded-md border border-border bg-background px-2 py-1 text-sm font-medium uppercase"
+                        />
+                      </form>
+                    ) : (
+                      f.number
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {editing === f.id ? (
+                      <div className="flex items-center gap-2">
+                        <select form={`edit-flat-${f.id}`} name="flatType" defaultValue={f.type} className="rounded-md border border-border bg-background px-2 py-1 text-sm">
                           {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                         </select>
-                        <button type="submit" disabled={pending} className="rounded-md bg-accent px-2 py-1 text-xs font-semibold text-white">Save</button>
+                        <button form={`edit-flat-${f.id}`} type="submit" disabled={pending} className="rounded-md bg-accent px-2 py-1 text-xs font-semibold text-white">Save</button>
                         <button type="button" onClick={() => setEditing(null)} className="text-xs text-muted">Cancel</button>
-                      </form>
+                      </div>
                     ) : (
                       <span className="capitalize text-muted">{f.type}</span>
                     )}
