@@ -65,7 +65,15 @@ export function PaymentForm({ flats }: { flats: FlatOption[] }) {
   );
 }
 
-export function ExpenseForm({ accounts }: { accounts: AccountOption[] }) {
+interface PeriodOption {
+  id: string;
+  month: number;
+  year: number;
+}
+
+const MONTH_NAMES = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+export function ExpenseForm({ accounts, periods }: { accounts: AccountOption[]; periods?: PeriodOption[] }) {
   const [state, action, pending] = useActionState(recordExpense, null);
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
@@ -98,6 +106,15 @@ export function ExpenseForm({ accounts }: { accounts: AccountOption[] }) {
           <input name="vendor" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
         </label>
         <label className="flex flex-col gap-1 text-sm">
+          Tag to billing period (optional)
+          <select name="periodId" className="rounded-lg border border-border bg-background px-3 py-2 text-sm">
+            <option value="">None / General expense</option>
+            {(periods ?? []).map((p) => (
+              <option key={p.id} value={p.id}>{MONTH_NAMES[p.month]} {p.year}</option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
           Paid from
           <select name="paidFrom" required className="rounded-lg border border-border bg-background px-3 py-2 text-sm">
             <option value="bank">Bank</option>
@@ -108,7 +125,7 @@ export function ExpenseForm({ accounts }: { accounts: AccountOption[] }) {
           Date
           <input name="spentOn" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-sm sm:col-span-2">
           Bill ref (optional)
           <input name="billRef" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
         </label>

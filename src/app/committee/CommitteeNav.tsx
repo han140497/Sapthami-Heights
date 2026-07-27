@@ -48,7 +48,7 @@ export function CommitteeNav({ email, role }: { email: string | null; role: stri
           </button>
         </div>
       </div>
-      <nav className="mx-auto flex w-full max-w-6xl gap-1 overflow-x-auto px-2 sm:px-4">
+      <nav className="mx-auto flex w-full max-w-6xl gap-1 overflow-x-auto no-scrollbar px-2 sm:px-4">
         {links.map((link) => {
           const active =
             link.href === "/committee" ? pathname === "/committee" : pathname.startsWith(link.href);

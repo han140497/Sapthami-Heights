@@ -41,7 +41,7 @@ export function ResidentNav({ flatNumber }: { flatNumber: string }) {
           <span className="hidden sm:inline">Sign out</span>
         </button>
       </div>
-      <nav className="mx-auto flex w-full max-w-5xl gap-1 overflow-x-auto px-2 sm:px-4">
+      <nav className="mx-auto flex w-full max-w-5xl gap-1 overflow-x-auto no-scrollbar px-2 sm:px-4">
         {links.map((link) => {
           const active =
             link.href === "/resident"

@@ -93,7 +93,7 @@ export default async function PeriodDetailPage({ params }: { params: Promise<{ i
       </Link>
       <PageHeader
         title={`${MONTHS[period.month]} ${period.year}`}
-        subtitle={`Maintenance ${formatPaise(period.maintenance_paise)}${period.sinking_fund_paise > 0 ? ` + sinking ${formatPaise(period.sinking_fund_paise)}` : ""} per flat`}
+        subtitle={`Maintenance ${formatPaise(period.maintenance_paise)}${period.sinking_fund_paise > 0 ? ` + corpus ${formatPaise(period.sinking_fund_paise)}` : ""} per flat`}
       >
         <Badge value={period.status} />
       </PageHeader>
@@ -108,6 +108,9 @@ export default async function PeriodDetailPage({ params }: { params: Promise<{ i
       {/* Water preview */}
       {preview && waterSpent > 0 && (
         <section className="mb-8">
+          <div className="mb-2.5 rounded-lg border border-accent/20 bg-accent/5 p-3 text-xs text-foreground">
+            <span className="font-semibold text-accent">Auto-Adjusted Balance Recovery:</span> Total water purchased into the sump ({(preview.purchasedLitres / 1000).toLocaleString("en-IN")} KL costing {formatPaise(preview.totalCostPaise)}) is automatically balanced against metered flat consumption ({(preview.meteredLitres / 1000).toLocaleString("en-IN")} KL). The unmetered loss/common usage of {(preview.lossLitres / 1000).toLocaleString("en-IN")} KL ({preview.lossPct}%) is automatically absorbed into the blended rate so 100% of the water expenditure is recovered across flats.
+          </div>
           <Card className="grid gap-4 sm:grid-cols-4">
             <div>
               <div className="text-xs uppercase text-muted">Blended rate</div>
@@ -116,18 +119,18 @@ export default async function PeriodDetailPage({ params }: { params: Promise<{ i
               </div>
             </div>
             <div>
-              <div className="text-xs uppercase text-muted">Metered</div>
+              <div className="text-xs uppercase text-muted">Metered to flats</div>
               <div className="tabular text-lg font-semibold">{(preview.meteredLitres / 1000).toLocaleString("en-IN")} KL</div>
             </div>
             <div>
-              <div className="text-xs uppercase text-muted">Loss</div>
+              <div className="text-xs uppercase text-muted">Unmetered loss</div>
               <div className={`tabular text-lg font-semibold ${preview.lossPct > 10 ? "text-warning" : ""}`}>
-                {preview.lossPct}%
+                {preview.lossPct}% ({(preview.lossLitres / 1000).toLocaleString("en-IN")} KL)
               </div>
             </div>
             <div>
-              <div className="text-xs uppercase text-muted">Recovered</div>
-              <div className="tabular text-lg font-semibold">{formatPaise(preview.totalCostPaise)}</div>
+              <div className="text-xs uppercase text-muted">Total Recovered</div>
+              <div className="tabular text-lg font-semibold text-positive">{formatPaise(preview.totalCostPaise)}</div>
             </div>
           </Card>
         </section>

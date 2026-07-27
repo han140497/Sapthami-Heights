@@ -25,7 +25,7 @@ export default async function SocietyPage() {
           tone={summary.receivable > 0 ? "warning" : "default"}
           hint="Outstanding dues across all flats"
         />
-        <StatTile label="Sinking fund" value={formatPaise(summary.sinkingFund)} hint="Reserved for big repairs" />
+        <StatTile label="Corpus fund" value={formatPaise(summary.sinkingFund)} hint="Reserved for major works & capital reserve" />
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">

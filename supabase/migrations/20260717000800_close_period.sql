@@ -158,7 +158,7 @@ begin
 
     if v_period.sinking_fund_paise > 0 then
       insert into invoice_lines (invoice_id, kind, description, amount_paise)
-      values (v_invoice_id, 'sinking_fund', 'Sinking fund contribution', v_period.sinking_fund_paise);
+      values (v_invoice_id, 'sinking_fund', 'Corpus fund contribution', v_period.sinking_fund_paise);
     end if;
 
     -- The water line carries qty and rate so the resident can multiply it out and

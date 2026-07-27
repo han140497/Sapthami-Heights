@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Upload } from "lucide-react";
 import { saveReadings } from "../actions";
 
 export interface ReadingRow {
@@ -30,9 +31,6 @@ export function ReadingsGrid({
       prev.map((r) => {
         if (r.flatId !== flatId) return r;
         const next = { ...r, ...patch };
-        // When a current reading is entered, derive consumption from the prior
-        // reading — unless the meter was reset, in which case consumption is typed
-        // directly and we leave it alone.
         if (patch.currentReading !== undefined && next.priorReading != null && !next.isEstimated) {
           const diff = (patch.currentReading ?? 0) - next.priorReading;
           next.consumption = diff >= 0 ? diff : next.consumption;
@@ -40,6 +38,56 @@ export function ReadingsGrid({
         return next;
       }),
     );
+  }
+
+  function handleCsvUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      if (!text) return;
+
+      const lines = text.split(/\r?\n/);
+      let count = 0;
+
+      setRows((prev) => {
+        const nextRows = [...prev];
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const parts = line.split(/[,;\t]+/).map((p) => p.trim());
+          if (parts.length < 2) continue;
+
+          const rawFlat = parts[0].toUpperCase().replace(/\s+/g, "");
+          const rawVal = Number(parts[1].replace(/[^0-9.]/g, ""));
+          if (isNaN(rawVal)) continue;
+
+          const targetIndex = nextRows.findIndex((r) => {
+            const num = r.flatNumber.toUpperCase().replace(/[^A-Z0-9]/g, "");
+            const search = rawFlat.replace(/[^A-Z0-9]/g, "");
+            return num === search;
+          });
+
+          if (targetIndex >= 0) {
+            const r = nextRows[targetIndex];
+            const updated = { ...r, currentReading: rawVal };
+            if (updated.priorReading != null && !updated.isEstimated) {
+              const diff = rawVal - updated.priorReading;
+              updated.consumption = diff >= 0 ? diff : rawVal;
+            } else {
+              updated.consumption = rawVal;
+            }
+            nextRows[targetIndex] = updated;
+            count++;
+          }
+        }
+        return nextRows;
+      });
+
+      setMessage(`Imported readings for ${count} flats from CSV. Don't forget to click "Save readings".`);
+      e.target.value = "";
+    };
+    reader.readAsText(file);
   }
 
   function save() {
@@ -62,18 +110,25 @@ export function ReadingsGrid({
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm text-muted">
           {entered} of {rows.length} flats have a reading
         </span>
         {!disabled && (
-          <button
-            onClick={save}
-            disabled={pending}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-          >
-            {pending ? "Saving…" : "Save readings"}
-          </button>
+          <div className="flex items-center gap-2">
+            <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-foreground hover:bg-background">
+              <Upload className="h-4 w-4 text-muted" />
+              <span>Import CSV</span>
+              <input type="file" accept=".csv,.txt" onChange={handleCsvUpload} className="hidden" />
+            </label>
+            <button
+              onClick={save}
+              disabled={pending}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {pending ? "Saving…" : "Save readings"}
+            </button>
+          </div>
         )}
       </div>
       {message && <p className="mb-3 text-sm text-positive">{message}</p>}

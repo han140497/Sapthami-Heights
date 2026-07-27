@@ -4,6 +4,7 @@ import {
   getRecentPayments,
   getRecentExpenses,
   getAllFlatBalances,
+  getPeriods,
 } from "@/lib/db/queries";
 import { Card, PageHeader, Badge, Money, EmptyState } from "@/components/ui";
 import { formatPaise } from "@/lib/money";
@@ -12,16 +13,18 @@ import { PaymentForm, ExpenseForm, VerifyButton } from "./MoneyForms";
 export const dynamic = "force-dynamic";
 
 export default async function MoneyPage() {
-  const [flats, accounts, payments, expenses, balances] = await Promise.all([
+  const [flats, accounts, payments, expenses, balances, periods] = await Promise.all([
     getFlats(),
     getExpenseAccounts(),
     getRecentPayments(15),
     getRecentExpenses(15),
     getAllFlatBalances(),
+    getPeriods(),
   ]);
 
   const flatOptions = flats.map((f) => ({ id: f.id as string, number: f.number as string }));
   const accountOptions = accounts.map((a) => ({ id: a.id as string, code: a.code as string, name: a.name as string }));
+  const periodOptions = periods.map((p) => ({ id: p.id, month: p.month, year: p.year }));
   const defaulters = balances.filter((b) => b.balance_paise > 0).sort((a, b) => b.balance_paise - a.balance_paise);
 
   return (
@@ -30,7 +33,7 @@ export default async function MoneyPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <PaymentForm flats={flatOptions} />
-        <ExpenseForm accounts={accountOptions} />
+        <ExpenseForm accounts={accountOptions} periods={periodOptions} />
       </div>
 
       <section className="mt-8 grid gap-6 lg:grid-cols-2">

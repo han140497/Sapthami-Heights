@@ -11,6 +11,8 @@ see the resulting numbers, including exactly how their water charge was derived.
   transaction is rejected; posted entries are immutable (corrections are reversals).
 - **Blended water billing** from two sources (Manjeera + tankers) with exact-integer,
   largest-remainder allocation so 37 flat charges sum to the bill to the paisa.
+- **CSV meter reading import** for one-click bulk upload of flat water readings from a spreadsheet file.
+- **Corpus Fund & Maintenance accounting** with period-tagged expense tracking and atomic period management (bulk delivery deletes & draft period deletion).
 - **Resident access** with no password — block + flat + registered phone.
 - **Committee back-office** — meter readings, water bills, atomic monthly close,
   payments, expenses, defaulters, trial balance and reconciliation.

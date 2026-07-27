@@ -8,7 +8,7 @@ insert into accounts (code, name, type, normal_side) values
   ('1010', 'Cash in Hand',                'asset',     'debit'),
   ('1100', 'Maintenance Receivable',      'asset',     'debit'),
   -- Liabilities
-  ('2000', 'Sinking Fund',                'liability', 'credit'),
+  ('2000', 'Corpus Fund',                 'liability', 'credit'),
   ('2010', 'Advance from Residents',      'liability', 'credit'),
   -- Equity
   ('3000', 'Corpus / Accumulated Surplus','equity',    'credit'),

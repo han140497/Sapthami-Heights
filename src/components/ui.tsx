@@ -106,10 +106,11 @@ export function PageHeader({
   );
 }
 
-export function EmptyState({ title, hint }: { title: string; hint?: string }) {
+export function EmptyState({ title, hint, icon }: { title: string; hint?: string; icon?: React.ReactNode }) {
   return (
-    <Card className="flex flex-col items-center gap-1 py-10 text-center">
-      <p className="font-medium">{title}</p>
+    <Card className="flex flex-col items-center justify-center gap-1.5 py-10 text-center">
+      {icon && <div className="mb-1 rounded-full bg-background p-3 text-muted">{icon}</div>}
+      <p className="font-semibold text-foreground">{title}</p>
       {hint && <p className="max-w-sm text-sm text-muted">{hint}</p>}
     </Card>
   );

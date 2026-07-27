@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui";
 import { formatPaise, paiseToRupeeInput } from "@/lib/money";
-import { editWaterPurchase, deleteWaterPurchase } from "../actions";
+import { editWaterPurchase, deleteWaterPurchase, deleteAllWaterPurchases } from "../actions";
 
 type Purchase = {
   id: string;
@@ -53,11 +53,33 @@ export function PurchasesList({
     });
   }
 
+  function removeAll() {
+    if (!confirm(`Are you sure you want to delete all ${purchases.length} water deliveries for this period?`)) return;
+    setError(null);
+    start(async () => {
+      const r = await deleteAllWaterPurchases(periodId);
+      if (r.ok) router.refresh();
+      else setError(r.error ?? "Could not delete all purchases.");
+    });
+  }
+
   if (purchases.length === 0) return null;
 
   return (
     <div className="mb-3 overflow-x-auto rounded-xl border border-border bg-surface">
       {error && <p className="border-b border-border px-4 py-2 text-sm text-negative">{error}</p>}
+      <div className="flex items-center justify-between border-b border-border px-4 py-2.5 bg-background/50">
+        <span className="text-xs font-semibold uppercase text-muted">Water deliveries ({purchases.length})</span>
+        {editable && purchases.length > 0 && (
+          <button
+            onClick={removeAll}
+            disabled={pending}
+            className="flex items-center gap-1 text-xs font-medium text-negative hover:underline disabled:opacity-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Delete all deliveries
+          </button>
+        )}
+      </div>
       <table className="w-full text-sm">
         <thead className="border-b border-border text-xs uppercase text-muted">
           <tr>

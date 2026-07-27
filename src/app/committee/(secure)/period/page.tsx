@@ -29,7 +29,7 @@ export default async function PeriodsPage() {
                   <div className="font-medium">{MONTHS[p.month]} {p.year}</div>
                   <div className="text-xs text-muted">
                     Maintenance {formatPaise(p.maintenance_paise)}
-                    {p.sinking_fund_paise > 0 && ` + sinking ${formatPaise(p.sinking_fund_paise)}`}
+                    {p.sinking_fund_paise > 0 && ` + corpus ${formatPaise(p.sinking_fund_paise)}`}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">

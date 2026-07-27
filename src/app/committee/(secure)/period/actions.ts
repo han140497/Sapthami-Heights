@@ -284,3 +284,61 @@ export async function reopenPeriod(periodId: string, reason: string): Promise<Ac
     return authError(e) ?? { ok: false, error: "Could not reopen." };
   }
 }
+
+export async function deleteAllWaterPurchases(periodId: string): Promise<ActionResult> {
+  try {
+    await requireCommittee();
+    const admin = getServiceClient();
+    const { data: period } = await admin
+      .from("billing_periods")
+      .select("status")
+      .eq("id", periodId)
+      .maybeSingle();
+    if (period?.status !== "open") return { ok: false, error: "Period is closed." };
+    await admin.from("water_purchases").delete().eq("period_id", periodId);
+    revalidatePath(`/committee/period/${periodId}`);
+    return { ok: true, message: "All water purchases deleted for this period." };
+  } catch (e) {
+    return authError(e) ?? { ok: false, error: "Could not delete water purchases." };
+  }
+}
+
+export async function deletePeriod(periodId: string): Promise<ActionResult> {
+  try {
+    await requireRole("treasurer", "president", "secretary");
+    const admin = getServiceClient();
+    const { data: period } = await admin
+      .from("billing_periods")
+      .select("status")
+      .eq("id", periodId)
+      .maybeSingle();
+    if (!period) return { ok: false, error: "Period not found." };
+    if (period.status !== "open") {
+      return { ok: false, error: "Period is closed. Reopen it first before deleting." };
+    }
+
+    // Check if invoices exist
+    const { count: invoiceCount } = await admin
+      .from("invoices")
+      .select("id", { count: "exact", head: true })
+      .eq("period_id", periodId);
+    if ((invoiceCount ?? 0) > 0) {
+      return { ok: false, error: "Invoices exist for this period. Cannot delete." };
+    }
+
+    // Delete child records first
+    await admin.from("water_meter_readings").delete().eq("period_id", periodId);
+    await admin.from("water_purchases").delete().eq("period_id", periodId);
+    await admin.from("water_period_summary").delete().eq("period_id", periodId);
+    await admin.from("expenses").update({ period_id: null }).eq("period_id", periodId);
+    
+    const { error } = await admin.from("billing_periods").delete().eq("id", periodId);
+    if (error) return { ok: false, error: "Could not delete the period." };
+
+    revalidatePath("/committee/period");
+    return { ok: true, message: "Billing period deleted successfully." };
+  } catch (e) {
+    return authError(e) ?? { ok: false, error: "Could not delete period." };
+  }
+}
+
