@@ -731,46 +731,11 @@ export async function resetAllTestData(): Promise<ActionResult> {
     await requireAdmin();
     const admin = getServiceClient();
 
-    // 1. Delete payment allocations
-    await admin.from("payment_allocations").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    const { error } = await admin.rpc("reset_all_test_data");
 
-    // 2. Unlink journal_entry_id references from payments, expenses, invoices
-    await admin.from("payments").update({ journal_entry_id: null }).neq("id", "00000000-0000-0000-0000-000000000000");
-    await admin.from("expenses").update({ journal_entry_id: null }).neq("id", "00000000-0000-0000-0000-000000000000");
-    await admin.from("invoices").update({ journal_entry_id: null }).neq("id", "00000000-0000-0000-0000-000000000000");
-
-    // 3. Delete payments & expenses
-    await admin.from("payments").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-    await admin.from("expenses").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-
-    // 4. Delete water tables
-    await admin.from("water_meter_readings").delete().neq("period_id", "00000000-0000-0000-0000-000000000000");
-    await admin.from("water_purchases").delete().neq("period_id", "00000000-0000-0000-0000-000000000000");
-    await admin.from("water_period_summary").delete().neq("period_id", "00000000-0000-0000-0000-000000000000");
-
-    // 5. Delete invoice lines, invoices, and billing periods
-    await admin.from("invoice_lines").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-    await admin.from("invoices").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-    await admin.from("billing_periods").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-
-    // 6. Delete journal lines first
-    await admin.from("journal_lines").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-
-    // 7. Unlink self-referencing reversal links on journal_entries to break circular FK constraint
-    await admin
-      .from("journal_entries")
-      .update({ reverses_entry_id: null, reversed_by_entry_id: null })
-      .neq("id", "00000000-0000-0000-0000-000000000000");
-
-    // 8. Delete journal entries
-    const { error: jeErr } = await admin
-      .from("journal_entries")
-      .delete()
-      .neq("id", "00000000-0000-0000-0000-000000000000");
-
-    if (jeErr) {
-      console.error("Failed to clear journal entries:", jeErr);
-      return { ok: false, error: `Could not clear ledger history: ${jeErr.message}` };
+    if (error) {
+      console.error("Failed to clear ledger history:", error);
+      return { ok: false, error: `Could not clear ledger history: ${error.message}` };
     }
 
     revalidatePath("/committee");
