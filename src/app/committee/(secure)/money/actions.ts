@@ -215,3 +215,319 @@ export async function recordExpense(_prev: unknown, formData: FormData): Promise
     return authError(e) ?? { ok: false, error: "Check the details and try again." };
   }
 }
+
+export async function deletePayment(paymentId: string): Promise<ActionResult> {
+  try {
+    const identity = await requireRole("treasurer", "president", "secretary");
+    const admin = getServiceClient();
+
+    const { data: payment } = await admin
+      .from("payments")
+      .select("id, flat_id, amount_paise, mode, status, journal_entry_id, paid_on, flats(number)")
+      .eq("id", paymentId)
+      .maybeSingle();
+
+    if (!payment) return { ok: false, error: "Payment not found." };
+
+    if (payment.status === "verified" && payment.journal_entry_id) {
+      const cashAccount = payment.mode === "cash" ? "1010" : "1000";
+      const flatNumber = (payment.flats as { number?: string } | null)?.number ?? "";
+      const today = new Date().toISOString().slice(0, 10);
+
+      const { error: revErr } = await admin.rpc("post_journal_entry", {
+        p_entry_date: today,
+        p_narration: `Reversal of payment — flat ${flatNumber}`,
+        p_source_type: "payment_reversal",
+        p_source_id: paymentId,
+        p_lines: [
+          { account_code: "1100", debit_paise: payment.amount_paise, flat_id: payment.flat_id },
+          { account_code: cashAccount, credit_paise: payment.amount_paise },
+        ],
+        p_created_by: identity.userId,
+      });
+
+      if (revErr) return { ok: false, error: "Could not reverse ledger entry." };
+    }
+
+    await admin.from("payment_allocations").delete().eq("payment_id", paymentId);
+    const { error: delErr } = await admin.from("payments").delete().eq("id", paymentId);
+    if (delErr) return { ok: false, error: "Could not delete payment record." };
+
+    revalidatePath("/committee/money");
+    revalidatePath("/committee");
+    return { ok: true, message: "Payment deleted." };
+  } catch (e) {
+    return authError(e) ?? { ok: false, error: "Could not delete payment." };
+  }
+}
+
+const updatePaymentSchema = z.object({
+  paymentId: z.string().uuid(),
+  flatId: z.string().uuid(),
+  amount: z.string(),
+  mode: z.enum(["upi", "bank", "cash", "cheque"]),
+  paidOn: z.string(),
+  reference: z.string().optional(),
+});
+
+export async function updatePayment(_prev: unknown, formData: FormData): Promise<ActionResult> {
+  try {
+    const identity = await requireRole("treasurer", "president", "secretary");
+    const parsed = updatePaymentSchema.parse({
+      paymentId: formData.get("paymentId"),
+      flatId: formData.get("flatId"),
+      amount: formData.get("amount"),
+      mode: formData.get("mode"),
+      paidOn: formData.get("paidOn"),
+      reference: formData.get("reference") ?? "",
+    });
+
+    const newAmountPaise = rupeesToPaise(parsed.amount);
+    if (newAmountPaise <= 0) return { ok: false, error: "Amount must be positive." };
+
+    const admin = getServiceClient();
+
+    const { data: payment } = await admin
+      .from("payments")
+      .select("id, status, journal_entry_id, mode, paid_on, flats(number)")
+      .eq("id", parsed.paymentId)
+      .maybeSingle();
+
+    if (!payment) return { ok: false, error: "Payment not found." };
+
+    let newEntryId: string | null = null;
+    if (payment.status === "verified") {
+      const oldCashAccount = payment.mode === "cash" ? "1010" : "1000";
+      const flatNumber = (payment.flats as { number?: string } | null)?.number ?? "";
+      const today = new Date().toISOString().slice(0, 10);
+
+      await admin.rpc("post_journal_entry", {
+        p_entry_date: today,
+        p_narration: `Reversal of payment prior to edit — flat ${flatNumber}`,
+        p_source_type: "payment_reversal",
+        p_source_id: parsed.paymentId,
+        p_lines: [
+          { account_code: "1100", debit_paise: newAmountPaise, flat_id: parsed.flatId },
+          { account_code: oldCashAccount, credit_paise: newAmountPaise },
+        ],
+        p_created_by: identity.userId,
+      });
+
+      const newCashAccount = parsed.mode === "cash" ? "1010" : "1000";
+      const { data: entryId, error: postErr } = await admin.rpc("post_journal_entry", {
+        p_entry_date: parsed.paidOn,
+        p_narration: `Payment received — flat ${flatNumber}`,
+        p_source_type: "payment",
+        p_source_id: parsed.paymentId,
+        p_lines: [
+          { account_code: newCashAccount, debit_paise: newAmountPaise },
+          { account_code: "1100", credit_paise: newAmountPaise, flat_id: parsed.flatId },
+        ],
+        p_created_by: identity.userId,
+      });
+
+      if (!postErr && entryId) newEntryId = entryId;
+    }
+
+    const updates: Record<string, unknown> = {
+      flat_id: parsed.flatId,
+      amount_paise: newAmountPaise,
+      mode: parsed.mode,
+      paid_on: parsed.paidOn,
+      reference: parsed.reference || null,
+    };
+    if (newEntryId) updates.journal_entry_id = newEntryId;
+
+    const { error: upErr } = await admin.from("payments").update(updates).eq("id", parsed.paymentId);
+    if (upErr) return { ok: false, error: "Could not update payment." };
+
+    await admin.from("payment_allocations").delete().eq("payment_id", parsed.paymentId);
+
+    const { data: invoices } = await admin
+      .from("invoices")
+      .select("id, total_paise, issued_on, payment_allocations(amount_paise)")
+      .eq("flat_id", parsed.flatId)
+      .is("voided_at", null)
+      .order("issued_on");
+
+    let remaining = newAmountPaise;
+    for (const inv of (invoices ?? []) as {
+      id: string;
+      total_paise: number;
+      payment_allocations: { amount_paise: number }[];
+    }[]) {
+      if (remaining <= 0) break;
+      const alreadyPaid = inv.payment_allocations.reduce((a, x) => a + x.amount_paise, 0);
+      const outstanding = inv.total_paise - alreadyPaid;
+      if (outstanding <= 0) continue;
+      const applied = Math.min(outstanding, remaining);
+      await admin.from("payment_allocations").insert({
+        payment_id: parsed.paymentId,
+        invoice_id: inv.id,
+        amount_paise: applied,
+      });
+      remaining -= applied;
+    }
+
+    revalidatePath("/committee/money");
+    revalidatePath("/committee");
+    return { ok: true, message: "Payment updated." };
+  } catch (e) {
+    return authError(e) ?? { ok: false, error: "Could not update payment." };
+  }
+}
+
+export async function deleteExpense(expenseId: string): Promise<ActionResult> {
+  try {
+    const identity = await requireRole("treasurer", "president");
+    const admin = getServiceClient();
+
+    const { data: expense } = await admin
+      .from("expenses")
+      .select("id, amount_paise, description, vendor, paid_from, category_account_id, journal_entry_id, accounts(code)")
+      .eq("id", expenseId)
+      .maybeSingle();
+
+    if (!expense) return { ok: false, error: "Expense not found." };
+
+    if (expense.journal_entry_id) {
+      const categoryCode = (expense.accounts as { code?: string } | null)?.code ?? "5000";
+      const cashAccount = expense.paid_from === "cash" ? "1010" : "1000";
+      const today = new Date().toISOString().slice(0, 10);
+
+      const { error: revErr } = await admin.rpc("post_journal_entry", {
+        p_entry_date: today,
+        p_narration: `Reversal of expense: ${expense.description}`,
+        p_source_type: "expense_reversal",
+        p_source_id: expenseId,
+        p_lines: [
+          { account_code: cashAccount, debit_paise: expense.amount_paise },
+          { account_code: categoryCode, credit_paise: expense.amount_paise },
+        ],
+        p_created_by: identity.userId,
+      });
+
+      if (revErr) return { ok: false, error: "Could not reverse ledger entry." };
+    }
+
+    const { error: delErr } = await admin.from("expenses").delete().eq("id", expenseId);
+    if (delErr) return { ok: false, error: "Could not delete expense record." };
+
+    revalidatePath("/committee/money");
+    revalidatePath("/committee");
+    revalidatePath("/committee/books");
+    return { ok: true, message: "Expense deleted and reversed." };
+  } catch (e) {
+    return authError(e) ?? { ok: false, error: "Could not delete expense." };
+  }
+}
+
+const updateExpenseSchema = z.object({
+  expenseId: z.string().uuid(),
+  categoryAccountId: z.string().uuid(),
+  amount: z.string(),
+  description: z.string().min(2).max(200),
+  vendor: z.string().optional(),
+  spentOn: z.string(),
+  paidFrom: z.enum(["bank", "cash"]),
+  billRef: z.string().optional(),
+  periodId: z.string().uuid().optional().or(z.literal("")),
+});
+
+export async function updateExpense(_prev: unknown, formData: FormData): Promise<ActionResult> {
+  try {
+    const identity = await requireRole("treasurer", "president");
+    const parsed = updateExpenseSchema.parse({
+      expenseId: formData.get("expenseId"),
+      categoryAccountId: formData.get("categoryAccountId"),
+      amount: formData.get("amount"),
+      description: formData.get("description"),
+      vendor: formData.get("vendor") ?? "",
+      spentOn: formData.get("spentOn"),
+      paidFrom: formData.get("paidFrom"),
+      billRef: formData.get("billRef") ?? "",
+      periodId: formData.get("periodId") ?? "",
+    });
+
+    const newAmountPaise = rupeesToPaise(parsed.amount);
+    if (newAmountPaise <= 0) return { ok: false, error: "Amount must be positive." };
+
+    const admin = getServiceClient();
+
+    const { data: expense } = await admin
+      .from("expenses")
+      .select("id, amount_paise, description, paid_from, journal_entry_id, accounts(code)")
+      .eq("id", parsed.expenseId)
+      .maybeSingle();
+
+    if (!expense) return { ok: false, error: "Expense not found." };
+
+    const { data: newAccount } = await admin
+      .from("accounts")
+      .select("code")
+      .eq("id", parsed.categoryAccountId)
+      .maybeSingle();
+
+    if (!newAccount) return { ok: false, error: "Unknown expense category." };
+
+    let newEntryId: string | null = null;
+    const today = new Date().toISOString().slice(0, 10);
+
+    if (expense.journal_entry_id) {
+      const oldCategoryCode = (expense.accounts as { code?: string } | null)?.code ?? "5000";
+      const oldCashAccount = expense.paid_from === "cash" ? "1010" : "1000";
+
+      await admin.rpc("post_journal_entry", {
+        p_entry_date: today,
+        p_narration: `Reversal of expense prior to edit: ${expense.description}`,
+        p_source_type: "expense_reversal",
+        p_source_id: parsed.expenseId,
+        p_lines: [
+          { account_code: oldCashAccount, debit_paise: expense.amount_paise },
+          { account_code: oldCategoryCode, credit_paise: expense.amount_paise },
+        ],
+        p_created_by: identity.userId,
+      });
+    }
+
+    const newCashAccount = parsed.paidFrom === "cash" ? "1010" : "1000";
+    const { data: entryId, error: postErr } = await admin.rpc("post_journal_entry", {
+      p_entry_date: parsed.spentOn,
+      p_narration: `${parsed.description}${parsed.vendor ? ` — ${parsed.vendor}` : ""}`,
+      p_source_type: "expense",
+      p_source_id: null,
+      p_lines: [
+        { account_code: newAccount.code, debit_paise: newAmountPaise },
+        { account_code: newCashAccount, credit_paise: newAmountPaise },
+      ],
+      p_created_by: identity.userId,
+    });
+
+    if (postErr) return { ok: false, error: postErr.message };
+    newEntryId = entryId;
+
+    const { error: upErr } = await admin
+      .from("expenses")
+      .update({
+        period_id: parsed.periodId || null,
+        category_account_id: parsed.categoryAccountId,
+        vendor: parsed.vendor || null,
+        description: parsed.description,
+        amount_paise: newAmountPaise,
+        spent_on: parsed.spentOn,
+        paid_from: parsed.paidFrom,
+        bill_ref: parsed.billRef || null,
+        journal_entry_id: newEntryId,
+      })
+      .eq("id", parsed.expenseId);
+
+    if (upErr) return { ok: false, error: "Could not update expense record." };
+
+    revalidatePath("/committee/money");
+    revalidatePath("/committee");
+    revalidatePath("/committee/books");
+    return { ok: true, message: "Expense updated." };
+  } catch (e) {
+    return authError(e) ?? { ok: false, error: "Could not update expense." };
+  }
+}

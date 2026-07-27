@@ -8,7 +8,9 @@ import {
 } from "@/lib/db/queries";
 import { Card, PageHeader, Badge, Money, EmptyState } from "@/components/ui";
 import { formatPaise } from "@/lib/money";
-import { PaymentForm, ExpenseForm, VerifyButton } from "./MoneyForms";
+import { PaymentForm, ExpenseForm } from "./MoneyForms";
+import { PaymentRowActions } from "./PaymentRowActions";
+import { ExpenseRowActions } from "./ExpenseRowActions";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +18,8 @@ export default async function MoneyPage() {
   const [flats, accounts, payments, expenses, balances, periods] = await Promise.all([
     getFlats(),
     getExpenseAccounts(),
-    getRecentPayments(15),
-    getRecentExpenses(15),
+    getRecentPayments(25),
+    getRecentExpenses(25),
     getAllFlatBalances(),
     getPeriods(),
   ]);
@@ -54,7 +56,7 @@ export default async function MoneyPage() {
                       <td className="px-2 py-2.5"><Badge value={p.status} /></td>
                       <td className="px-4 py-2.5 text-right tabular">{formatPaise(p.amount_paise)}</td>
                       <td className="px-3 py-2.5 text-right">
-                        {p.status === "recorded" ? <VerifyButton paymentId={p.id} /> : null}
+                        <PaymentRowActions payment={p} flats={flatOptions} />
                       </td>
                     </tr>
                   ))}
@@ -74,8 +76,13 @@ export default async function MoneyPage() {
                 <tbody>
                   {(expenses as {
                     id: string;
+                    category_account_id: string;
                     description: string;
+                    vendor?: string | null;
                     spent_on: string;
+                    paid_from: string;
+                    bill_ref?: string | null;
+                    period_id?: string | null;
                     amount_paise: number;
                     accounts?: { name?: string };
                   }[]).map((e) => (
@@ -85,6 +92,9 @@ export default async function MoneyPage() {
                         <div className="text-xs text-muted">{e.accounts?.name} · {e.spent_on}</div>
                       </td>
                       <td className="px-4 py-2.5 text-right tabular">{formatPaise(e.amount_paise)}</td>
+                      <td className="px-3 py-2.5 text-right">
+                        <ExpenseRowActions expense={e} accounts={accountOptions} periods={periodOptions} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
