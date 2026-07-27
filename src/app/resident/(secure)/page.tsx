@@ -8,6 +8,8 @@ import {
 import { Card, Money, PageHeader, StatTile, EmptyState, Badge } from "@/components/ui";
 import { formatPaise } from "@/lib/money";
 
+import { SubmitPaymentModal } from "./SubmitPaymentModal";
+
 export const dynamic = "force-dynamic";
 
 export default async function MyFlatPage() {
@@ -29,7 +31,9 @@ export default async function MyFlatPage() {
       <PageHeader
         title={`Flat ${session.flatNumber}`}
         subtitle="Your maintenance account with the society."
-      />
+      >
+        <SubmitPaymentModal />
+      </PageHeader>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <StatTile

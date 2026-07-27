@@ -725,3 +725,33 @@ export async function endCommitteeTerm(memberId: string): Promise<ActionResult> 
     return authError(e) ?? { ok: false, error: "Could not end the term." };
   }
 }
+
+export async function resetAllTestData(): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const admin = getServiceClient();
+
+    // Delete in FK dependency order
+    await admin.from("payment_allocations").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await admin.from("payments").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await admin.from("expenses").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await admin.from("water_meter_readings").delete().neq("period_id", "00000000-0000-0000-0000-000000000000");
+    await admin.from("water_purchases").delete().neq("period_id", "00000000-0000-0000-0000-000000000000");
+    await admin.from("water_period_summary").delete().neq("period_id", "00000000-0000-0000-0000-000000000000");
+    await admin.from("invoice_lines").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await admin.from("invoices").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await admin.from("billing_periods").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await admin.from("journal_lines").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await admin.from("journal_entries").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+    revalidatePath("/committee");
+    revalidatePath("/committee/money");
+    revalidatePath("/committee/books");
+    revalidatePath("/committee/period");
+    revalidatePath("/committee/admin");
+    revalidatePath("/resident");
+    return { ok: true, message: "All test transactions and ledger history cleared cleanly!" };
+  } catch (e) {
+    return authError(e) ?? { ok: false, error: "Could not reset test data." };
+  }
+}

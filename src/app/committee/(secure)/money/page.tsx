@@ -29,9 +29,22 @@ export default async function MoneyPage() {
   const periodOptions = periods.map((p) => ({ id: p.id, month: p.month, year: p.year }));
   const defaulters = balances.filter((b) => b.balance_paise > 0).sort((a, b) => b.balance_paise - a.balance_paise);
 
+  const pendingPayments = payments.filter((p) => p.status === "recorded");
+
   return (
     <>
       <PageHeader title="Money" subtitle="Record payments and expenses. Nothing here moves money — it records what already happened." />
+
+      {pendingPayments.length > 0 && (
+        <div className="mb-6 rounded-xl border border-accent/40 bg-accent/5 p-4 shadow-sm">
+          <h3 className="font-semibold text-accent flex items-center gap-2">
+            🔔 {pendingPayments.length} Pending Resident Payment Claim{pendingPayments.length > 1 ? "s" : ""}
+          </h3>
+          <p className="mt-0.5 text-xs text-muted">
+            Residents have submitted payment claims below. Click <strong>Verify</strong> to approve and post to the ledger.
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <PaymentForm flats={flatOptions} />

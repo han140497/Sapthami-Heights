@@ -147,8 +147,19 @@ export function ReadingsGrid({
             {rows.map((r) => (
               <tr key={r.flatId} className="border-t border-border">
                 <td className="px-3 py-1.5 font-medium">{r.flatNumber}</td>
-                <td className="px-3 py-1.5 text-right tabular text-muted">
-                  {r.priorReading ?? "—"}
+                <td className="px-3 py-1.5 text-right">
+                  <input
+                    type="number"
+                    disabled={disabled}
+                    placeholder="Baseline"
+                    value={r.priorReading ?? ""}
+                    onChange={(e) =>
+                      update(r.flatId, {
+                        priorReading: e.target.value === "" ? null : Number(e.target.value),
+                      })
+                    }
+                    className="w-24 rounded border border-border bg-surface px-2 py-1 text-right tabular text-muted disabled:opacity-60"
+                  />
                 </td>
                 <td className="px-3 py-1.5 text-right">
                   <input

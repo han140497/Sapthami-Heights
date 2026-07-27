@@ -9,6 +9,8 @@ import { CommitteeManager } from "./CommitteeManager";
 import { PendingApprovals } from "./PendingApprovals";
 import { VehiclesManager } from "./VehiclesManager";
 
+import { ResetDataButton } from "./ResetDataButton";
+
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
@@ -185,6 +187,11 @@ export default async function AdminPage() {
           <CommitteeManager members={committeeRows} currentUserEmail={identity?.email ?? null} />
           <FlatsManager flats={flatRows} />
           <AccountsManager accounts={accountRows} />
+          <div className="mt-8 border-t border-border pt-6">
+            <h3 className="mb-1 text-sm font-semibold text-negative">Fresh Handover Reset</h3>
+            <p className="mb-3 text-xs text-muted">Wipe all sample test payments, expenses, invoices, and ledger entries to start with a fresh ₹0 slate for your official takeover month.</p>
+            <ResetDataButton />
+          </div>
         </>
       ) : (
         <Card className="mt-4 border-dashed">
