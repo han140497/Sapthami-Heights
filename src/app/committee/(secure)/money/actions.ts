@@ -223,30 +223,23 @@ export async function deletePayment(paymentId: string): Promise<ActionResult> {
 
     const { data: payment } = await admin
       .from("payments")
-      .select("id, flat_id, amount_paise, mode, status, journal_entry_id, paid_on, flats(number)")
+      .select("id, status, journal_entry_id, flats(number)")
       .eq("id", paymentId)
       .maybeSingle();
 
     if (!payment) return { ok: false, error: "Payment not found." };
 
     if (payment.status === "verified" && payment.journal_entry_id) {
-      const cashAccount = payment.mode === "cash" ? "1010" : "1000";
       const flatNumber = (payment.flats as { number?: string } | null)?.number ?? "";
-      const today = new Date().toISOString().slice(0, 10);
-
-      const { error: revErr } = await admin.rpc("post_journal_entry", {
-        p_entry_date: today,
-        p_narration: `Reversal of payment — flat ${flatNumber}`,
-        p_source_type: "payment_reversal",
-        p_source_id: paymentId,
-        p_lines: [
-          { account_code: "1100", debit_paise: payment.amount_paise, flat_id: payment.flat_id },
-          { account_code: cashAccount, credit_paise: payment.amount_paise },
-        ],
+      const { error: revErr } = await admin.rpc("reverse_journal_entry", {
+        p_entry_id: payment.journal_entry_id,
+        p_reason: `Deletion of payment for flat ${flatNumber}`,
         p_created_by: identity.userId,
       });
 
-      if (revErr) return { ok: false, error: "Could not reverse ledger entry." };
+      if (revErr) {
+        return { ok: false, error: `Could not reverse ledger entry: ${revErr.message}` };
+      }
     }
 
     await admin.from("payment_allocations").delete().eq("payment_id", paymentId);
@@ -289,27 +282,18 @@ export async function updatePayment(_prev: unknown, formData: FormData): Promise
 
     const { data: payment } = await admin
       .from("payments")
-      .select("id, status, journal_entry_id, mode, paid_on, flats(number)")
+      .select("id, status, journal_entry_id, flats(number)")
       .eq("id", parsed.paymentId)
       .maybeSingle();
 
     if (!payment) return { ok: false, error: "Payment not found." };
 
     let newEntryId: string | null = null;
-    if (payment.status === "verified") {
-      const oldCashAccount = payment.mode === "cash" ? "1010" : "1000";
+    if (payment.status === "verified" && payment.journal_entry_id) {
       const flatNumber = (payment.flats as { number?: string } | null)?.number ?? "";
-      const today = new Date().toISOString().slice(0, 10);
-
-      await admin.rpc("post_journal_entry", {
-        p_entry_date: today,
-        p_narration: `Reversal of payment prior to edit — flat ${flatNumber}`,
-        p_source_type: "payment_reversal",
-        p_source_id: parsed.paymentId,
-        p_lines: [
-          { account_code: "1100", debit_paise: newAmountPaise, flat_id: parsed.flatId },
-          { account_code: oldCashAccount, credit_paise: newAmountPaise },
-        ],
+      await admin.rpc("reverse_journal_entry", {
+        p_entry_id: payment.journal_entry_id,
+        p_reason: `Reversal prior to edit — flat ${flatNumber}`,
         p_created_by: identity.userId,
       });
 
@@ -384,30 +368,22 @@ export async function deleteExpense(expenseId: string): Promise<ActionResult> {
 
     const { data: expense } = await admin
       .from("expenses")
-      .select("id, amount_paise, description, vendor, paid_from, category_account_id, journal_entry_id, accounts(code)")
+      .select("id, description, journal_entry_id")
       .eq("id", expenseId)
       .maybeSingle();
 
     if (!expense) return { ok: false, error: "Expense not found." };
 
     if (expense.journal_entry_id) {
-      const categoryCode = (expense.accounts as { code?: string } | null)?.code ?? "5000";
-      const cashAccount = expense.paid_from === "cash" ? "1010" : "1000";
-      const today = new Date().toISOString().slice(0, 10);
-
-      const { error: revErr } = await admin.rpc("post_journal_entry", {
-        p_entry_date: today,
-        p_narration: `Reversal of expense: ${expense.description}`,
-        p_source_type: "expense_reversal",
-        p_source_id: expenseId,
-        p_lines: [
-          { account_code: cashAccount, debit_paise: expense.amount_paise },
-          { account_code: categoryCode, credit_paise: expense.amount_paise },
-        ],
+      const { error: revErr } = await admin.rpc("reverse_journal_entry", {
+        p_entry_id: expense.journal_entry_id,
+        p_reason: `Deletion of expense: ${expense.description}`,
         p_created_by: identity.userId,
       });
 
-      if (revErr) return { ok: false, error: "Could not reverse ledger entry." };
+      if (revErr) {
+        return { ok: false, error: `Could not reverse ledger entry: ${revErr.message}` };
+      }
     }
 
     const { error: delErr } = await admin.from("expenses").delete().eq("id", expenseId);
@@ -456,7 +432,7 @@ export async function updateExpense(_prev: unknown, formData: FormData): Promise
 
     const { data: expense } = await admin
       .from("expenses")
-      .select("id, amount_paise, description, paid_from, journal_entry_id, accounts(code)")
+      .select("id, journal_entry_id")
       .eq("id", parsed.expenseId)
       .maybeSingle();
 
@@ -470,22 +446,10 @@ export async function updateExpense(_prev: unknown, formData: FormData): Promise
 
     if (!newAccount) return { ok: false, error: "Unknown expense category." };
 
-    let newEntryId: string | null = null;
-    const today = new Date().toISOString().slice(0, 10);
-
     if (expense.journal_entry_id) {
-      const oldCategoryCode = (expense.accounts as { code?: string } | null)?.code ?? "5000";
-      const oldCashAccount = expense.paid_from === "cash" ? "1010" : "1000";
-
-      await admin.rpc("post_journal_entry", {
-        p_entry_date: today,
-        p_narration: `Reversal of expense prior to edit: ${expense.description}`,
-        p_source_type: "expense_reversal",
-        p_source_id: parsed.expenseId,
-        p_lines: [
-          { account_code: oldCashAccount, debit_paise: expense.amount_paise },
-          { account_code: oldCategoryCode, credit_paise: expense.amount_paise },
-        ],
+      await admin.rpc("reverse_journal_entry", {
+        p_entry_id: expense.journal_entry_id,
+        p_reason: `Reversal prior to editing expense: ${parsed.description}`,
         p_created_by: identity.userId,
       });
     }
@@ -495,7 +459,7 @@ export async function updateExpense(_prev: unknown, formData: FormData): Promise
       p_entry_date: parsed.spentOn,
       p_narration: `${parsed.description}${parsed.vendor ? ` — ${parsed.vendor}` : ""}`,
       p_source_type: "expense",
-      p_source_id: null,
+      p_source_id: parsed.expenseId,
       p_lines: [
         { account_code: newAccount.code, debit_paise: newAmountPaise },
         { account_code: newCashAccount, credit_paise: newAmountPaise },
@@ -504,7 +468,6 @@ export async function updateExpense(_prev: unknown, formData: FormData): Promise
     });
 
     if (postErr) return { ok: false, error: postErr.message };
-    newEntryId = entryId;
 
     const { error: upErr } = await admin
       .from("expenses")
@@ -517,7 +480,7 @@ export async function updateExpense(_prev: unknown, formData: FormData): Promise
         spent_on: parsed.spentOn,
         paid_from: parsed.paidFrom,
         bill_ref: parsed.billRef || null,
-        journal_entry_id: newEntryId,
+        journal_entry_id: entryId,
       })
       .eq("id", parsed.expenseId);
 
