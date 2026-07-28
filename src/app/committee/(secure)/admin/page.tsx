@@ -142,38 +142,49 @@ export default async function AdminPage() {
                 <th className="px-4 py-2 text-left font-medium">Type</th>
                 <th className="px-4 py-2 text-left font-medium">Registered residents</th>
                 <th className="px-4 py-2 text-left font-medium">Login status</th>
+                <th className="px-4 py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {activeFlats.map((r) => (
-                <tr key={r.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-2.5 font-medium">{r.number}</td>
-                  <td className="px-4 py-2.5 capitalize text-muted">{r.type}</td>
-                  <td className="px-4 py-2.5">
-                    {r.residents.length > 0 ? (
-                      <div className="space-y-2">
-                        {r.residents.map((res) => (
-                          <div key={res.residentId} className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-1.5 last:border-0 last:pb-0">
-                            <div>
-                              <span className="font-medium text-foreground">{res.name}</span>
-                              <span className="ml-2 rounded bg-background px-1.5 py-0.5 text-xs font-semibold capitalize text-muted">
-                                {res.role}
-                              </span>
-                              <span className="ml-2 font-mono text-xs text-muted">{res.phone}</span>
-                            </div>
-                            <ResidentActions flatId={r.id} flatNumber={r.number} resident={res} />
-                          </div>
-                        ))}
+              {activeFlats.map((r) => {
+                if (r.residents.length === 0) {
+                  return (
+                    <tr key={r.id} className="border-b border-border last:border-0">
+                      <td className="px-4 py-3 font-medium">{r.number}</td>
+                      <td className="px-4 py-3 capitalize text-muted">{r.type}</td>
+                      <td className="px-4 py-3 text-muted">— No resident added —</td>
+                      <td className="px-4 py-3"><Badge value="open" /></td>
+                      <td className="px-4 py-3 text-right text-muted">—</td>
+                    </tr>
+                  );
+                }
+
+                return r.residents.map((res, idx) => (
+                  <tr key={res.residentId} className="border-b border-border last:border-0">
+                    <td className="px-4 py-3 font-medium">
+                      {idx === 0 ? r.number : <span className="text-muted/60 text-xs">↳ {r.number}</span>}
+                    </td>
+                    <td className="px-4 py-3 capitalize text-muted">
+                      {idx === 0 ? r.type : ""}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-foreground">{res.name}</span>
+                        <span className="rounded bg-background px-1.5 py-0.5 text-xs font-semibold capitalize text-muted">
+                          {res.role}
+                        </span>
+                        <span className="font-mono text-xs text-muted">{res.phone}</span>
                       </div>
-                    ) : (
-                      <span className="text-muted">— No resident added —</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    {r.residents.length > 0 ? <Badge value="verified" /> : <Badge value="open" />}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge value="verified" />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <ResidentActions flatId={r.id} flatNumber={r.number} resident={res} />
+                    </td>
+                  </tr>
+                ));
+              })}
             </tbody>
           </table>
         </div>

@@ -110,7 +110,7 @@ export function VehiclesManager({
                   <th className="px-4 py-2 text-left font-medium">Type</th>
                   <th className="px-4 py-2 text-left font-medium">Details</th>
                   <th className="px-4 py-2 text-left font-medium">Slot</th>
-                  <th className="px-2 py-2" />
+                  <th className="px-4 py-2 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -121,7 +121,7 @@ export function VehiclesManager({
                     <td className="px-4 py-2.5 capitalize text-muted">{v.vehicle_type}</td>
                     <td className="px-4 py-2.5 text-muted">{v.make_model ?? "—"}</td>
                     <td className="px-4 py-2.5 text-muted">{v.parking_slot ?? "—"}</td>
-                    <td className="px-2 py-2.5 text-right">
+                    <td className="px-4 py-2.5 text-right">
                       <ActionMenu
                         items={[
                           {

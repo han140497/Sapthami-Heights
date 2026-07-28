@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { BookPlus, X } from "lucide-react";
+import { BookPlus, X, Pencil, Power, Trash2 } from "lucide-react";
+import { ActionMenu } from "@/components/ui";
 import { createAccount, updateAccount, setAccountActive, deleteAccount } from "./actions";
 
 const TYPES = ["asset", "liability", "income", "expense", "equity"] as const;
@@ -113,27 +114,36 @@ export function AccountsManager({ accounts }: { accounts: Account[] }) {
                     {a.isActive ? <span className="text-positive">Active</span> : <span className="text-muted">Inactive</span>}
                     {a.inUse && <span className="ml-2 text-xs text-muted">· in use</span>}
                   </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex justify-end gap-3">
-                      {editing !== a.id && (
-                        <button onClick={() => setEditing(a.id)} className="text-sm text-muted hover:text-foreground">Rename</button>
-                      )}
-                      <button onClick={() => run(() => setAccountActive(a.id, !a.isActive))} disabled={pending} className="text-sm text-muted hover:text-foreground disabled:opacity-50">
-                        {a.isActive ? "Deactivate" : "Reactivate"}
-                      </button>
-                      <button
-                        onClick={() => {
-                          const msg = a.inUse
-                            ? `${a.code} has ledger entries and will be deactivated (not deleted) to keep the books intact. Continue?`
-                            : `Delete account ${a.code} — ${a.name}?`;
-                          if (!confirm(msg)) return; run(() => deleteAccount(a.id));
-                        }}
-                        disabled={pending}
-                        className="text-sm text-negative hover:underline disabled:opacity-50"
-                      >
-                        Delete
-                      </button>
-                    </div>
+                  <td className="px-4 py-2.5 text-right">
+                    {editing !== a.id && (
+                      <ActionMenu
+                        items={[
+                          {
+                            label: "Rename Account",
+                            icon: <Pencil className="h-3.5 w-3.5" />,
+                            onClick: () => setEditing(a.id),
+                          },
+                          {
+                            label: a.isActive ? "Deactivate" : "Reactivate",
+                            icon: <Power className="h-3.5 w-3.5" />,
+                            onClick: () => run(() => setAccountActive(a.id, !a.isActive)),
+                            tone: a.isActive ? "warning" : "positive",
+                          },
+                          {
+                            label: "Delete Account",
+                            icon: <Trash2 className="h-3.5 w-3.5" />,
+                            onClick: () => {
+                              const msg = a.inUse
+                                ? `${a.code} has ledger entries and will be deactivated (not deleted) to keep the books intact. Continue?`
+                                : `Delete account ${a.code} — ${a.name}?`;
+                              if (confirm(msg)) run(() => deleteAccount(a.id));
+                            },
+                            tone: "negative",
+                            dividerBefore: true,
+                          },
+                        ]}
+                      />
+                    )}
                   </td>
                 </tr>
               ))}
