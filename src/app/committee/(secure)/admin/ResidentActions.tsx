@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2 } from "lucide-react";
+import { ActionMenu } from "@/components/ui";
 import { updateResident, removeResidentFromFlat } from "./actions";
 
 export type ResidentItem = {
@@ -117,22 +118,21 @@ export function ResidentActions({
   }
 
   return (
-    <div className="flex items-center justify-end gap-2">
-      <button
-        onClick={() => setEditing(true)}
-        className="flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground"
-        title="Edit resident details"
-      >
-        <Pencil className="h-3.5 w-3.5" /> Edit
-      </button>
-      <button
-        onClick={onRemove}
-        disabled={pending}
-        className="flex items-center gap-1 text-xs font-medium text-negative hover:underline disabled:opacity-50"
-        title="Remove resident from flat"
-      >
-        <Trash2 className="h-3.5 w-3.5" /> Remove
-      </button>
-    </div>
+    <ActionMenu
+      items={[
+        {
+          label: "Edit Resident",
+          icon: <Pencil className="h-3.5 w-3.5" />,
+          onClick: () => setEditing(true),
+        },
+        {
+          label: "Remove from Flat",
+          icon: <Trash2 className="h-3.5 w-3.5" />,
+          onClick: onRemove,
+          tone: "negative",
+          dividerBefore: true,
+        },
+      ]}
+    />
   );
 }

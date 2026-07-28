@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Car, X } from "lucide-react";
+import { Car, X, Trash2 } from "lucide-react";
+import { ActionMenu } from "@/components/ui";
 import { addVehicleForFlat, removeVehicleAsAdmin } from "./actions";
 
 const TYPES = ["car", "bike", "scooter", "bicycle", "other"] as const;
@@ -121,13 +122,20 @@ export function VehiclesManager({
                     <td className="px-4 py-2.5 text-muted">{v.make_model ?? "—"}</td>
                     <td className="px-4 py-2.5 text-muted">{v.parking_slot ?? "—"}</td>
                     <td className="px-2 py-2.5 text-right">
-                      <button
-                        onClick={() => { if (!confirm(`Remove ${v.registration_number}?`)) return; run(() => removeVehicleAsAdmin(v.id)); }}
-                        disabled={pending}
-                        className="text-sm text-negative hover:underline disabled:opacity-50"
-                      >
-                        Remove
-                      </button>
+                      <ActionMenu
+                        items={[
+                          {
+                            label: "Remove Vehicle",
+                            icon: <Trash2 className="h-3.5 w-3.5" />,
+                            onClick: () => {
+                              if (confirm(`Remove ${v.registration_number}?`)) {
+                                run(() => removeVehicleAsAdmin(v.id));
+                              }
+                            },
+                            tone: "negative",
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))}

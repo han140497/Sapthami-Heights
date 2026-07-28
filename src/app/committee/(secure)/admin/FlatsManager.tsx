@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Home, X } from "lucide-react";
+import { Home, X, Pencil, Power, Trash2 } from "lucide-react";
+import { ActionMenu } from "@/components/ui";
 import { createFlat, updateFlat, setFlatActive, deleteFlat } from "./actions";
 
 const TYPES = ["2BHK", "3BHK", "penthouse"] as const;
@@ -145,29 +146,35 @@ export function FlatsManager({ flats }: { flats: Flat[] }) {
                   <td className="px-4 py-2.5">
                     {f.isActive ? <span className="text-positive">Active</span> : <span className="text-muted">Inactive</span>}
                   </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex justify-end gap-3">
-                      {editing !== f.id && (
-                        <button onClick={() => setEditing(f.id)} className="text-sm text-muted hover:text-foreground">Edit</button>
-                      )}
-                      <button
-                        onClick={() => run(() => setFlatActive(f.id, !f.isActive))}
-                        disabled={pending}
-                        className="text-sm text-muted hover:text-foreground disabled:opacity-50"
-                      >
-                        {f.isActive ? "Deactivate" : "Reactivate"}
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (!confirm(`Delete ${f.number}? If it has billing history it will be deactivated instead, to protect the books.`)) return;
-                            run(() => deleteFlat(f.id));
-                        }}
-                        disabled={pending}
-                        className="text-sm text-negative hover:underline disabled:opacity-50"
-                      >
-                        Delete
-                      </button>
-                    </div>
+                  <td className="px-4 py-2.5 text-right">
+                    {editing !== f.id && (
+                      <ActionMenu
+                        items={[
+                          {
+                            label: "Edit Flat",
+                            icon: <Pencil className="h-3.5 w-3.5" />,
+                            onClick: () => setEditing(f.id),
+                          },
+                          {
+                            label: f.isActive ? "Deactivate" : "Reactivate",
+                            icon: <Power className="h-3.5 w-3.5" />,
+                            onClick: () => run(() => setFlatActive(f.id, !f.isActive)),
+                            tone: f.isActive ? "warning" : "positive",
+                          },
+                          {
+                            label: "Delete Flat",
+                            icon: <Trash2 className="h-3.5 w-3.5" />,
+                            onClick: () => {
+                              if (confirm(`Delete ${f.number}? If it has billing history it will be deactivated instead.`)) {
+                                run(() => deleteFlat(f.id));
+                              }
+                            },
+                            tone: "negative",
+                            dividerBefore: true,
+                          },
+                        ]}
+                      />
+                    )}
                   </td>
                 </tr>
               ))}

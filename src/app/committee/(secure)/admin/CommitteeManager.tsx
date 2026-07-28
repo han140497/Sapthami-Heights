@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, X } from "lucide-react";
+import { UserPlus, X, KeyRound, Trash2 } from "lucide-react";
+import { ActionMenu } from "@/components/ui";
 import { addCommitteeMember, changeCommitteeRole, endCommitteeTerm, setMemberPassword } from "./actions";
 
 const ROLES = ["admin", "president", "secretary", "treasurer", "member"] as const;
@@ -155,15 +156,23 @@ export function CommitteeManager({
                   </select>
                 </td>
                 <td className="px-4 py-2.5 tabular text-muted">{m.fromDate}</td>
-                <td className="px-4 py-2.5">
-                  <div className="flex justify-end gap-3">
-                    <button onClick={() => onResetPassword(m.userId, m.email)} disabled={pending} className="text-sm text-muted hover:text-foreground disabled:opacity-50">
-                      Reset password
-                    </button>
-                    <button onClick={() => onEndTerm(m.id, m.email)} disabled={pending} className="text-sm text-negative hover:underline disabled:opacity-50">
-                      Remove
-                    </button>
-                  </div>
+                <td className="px-4 py-2.5 text-right">
+                  <ActionMenu
+                    items={[
+                      {
+                        label: "Reset Password",
+                        icon: <KeyRound className="h-3.5 w-3.5" />,
+                        onClick: () => onResetPassword(m.userId, m.email),
+                      },
+                      {
+                        label: "Remove Member",
+                        icon: <Trash2 className="h-3.5 w-3.5" />,
+                        onClick: () => onEndTerm(m.id, m.email),
+                        tone: "negative",
+                        dividerBefore: true,
+                      },
+                    ]}
+                  />
                 </td>
               </tr>
             ))}

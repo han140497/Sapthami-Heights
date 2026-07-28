@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { formatPaise } from "@/lib/money";
 
 export { ToastProvider, useToast } from "./ui/Toast";
+export { ActionMenu } from "./ui/ActionMenu";
 
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
