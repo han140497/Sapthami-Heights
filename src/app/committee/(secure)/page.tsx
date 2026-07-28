@@ -6,23 +6,29 @@ import {
   getLedgerHealth,
   getWaterTransparency,
   getPeriods,
+  getRecentPayments,
 } from "@/lib/db/queries";
 import { Card, PageHeader, StatTile, Money, EmptyState } from "@/components/ui";
 import { formatPaise } from "@/lib/money";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { MonthlyChecklist } from "./MonthlyChecklist";
+import { CashBankSummary } from "./CashBankSummary";
+
+import { WhatsAppReminderButton } from "./money/WhatsAppReminderButton";
 
 export const dynamic = "force-dynamic";
 
 const OPEN_STATUSES = new Set(["open", "acknowledged", "estimating", "approved", "in_progress"]);
 
 export default async function CommitteeDashboard() {
-  const [balances, summary, issues, health, water, periods] = await Promise.all([
+  const [balances, summary, issues, health, water, periods, payments] = await Promise.all([
     getAllFlatBalances(),
     getSocietySummary(),
     getIssues(),
     getLedgerHealth(),
     getWaterTransparency(),
     getPeriods(),
+    getRecentPayments(50),
   ]);
 
   const defaulters = balances.filter((b) => b.balance_paise > 0).sort((a, b) => b.balance_paise - a.balance_paise);
@@ -34,9 +40,20 @@ export default async function CommitteeDashboard() {
   const ledgerOk = health && health.variance_paise === 0 && health.unbalanced_entry_count === 0;
   const latestWater = water[0];
 
+  const pendingPayments = payments.filter((p) => p.status === "recorded");
+  const openPeriod = periods.find((p) => p.status === "open");
+
   return (
     <>
       <PageHeader title="Committee dashboard" subtitle="The state of the society's money, at a glance." />
+
+      <MonthlyChecklist
+        pendingPaymentsCount={pendingPayments.length}
+        hasOpenPeriod={!!openPeriod}
+        openPeriodId={openPeriod?.id}
+      />
+
+      <CashBankSummary bankPaise={summary.bank} cashPaise={summary.cash} />
 
       {/* Ledger health banner — the single most important signal on the page. */}
       <div
@@ -106,6 +123,9 @@ export default async function CommitteeDashboard() {
                       <td className="px-4 py-3 font-medium">{d.number}</td>
                       <td className="px-4 py-3 text-right">
                         <Money paise={d.balance_paise} signed />
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        <WhatsAppReminderButton flatNumber={d.number} amountPaise={d.balance_paise} />
                       </td>
                     </tr>
                   ))}

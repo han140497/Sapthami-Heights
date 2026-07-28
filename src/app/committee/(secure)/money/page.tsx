@@ -12,6 +12,8 @@ import { PaymentForm, ExpenseForm } from "./MoneyForms";
 import { PaymentRowActions } from "./PaymentRowActions";
 import { ExpenseRowActions } from "./ExpenseRowActions";
 
+import { WhatsAppReminderButton } from "./WhatsAppReminderButton";
+
 export const dynamic = "force-dynamic";
 
 export default async function MoneyPage() {
@@ -129,6 +131,9 @@ export default async function MoneyPage() {
                   <tr key={d.flat_id} className="border-b border-border last:border-0">
                     <td className="px-4 py-2.5 font-medium">{d.number}</td>
                     <td className="px-4 py-2.5 text-right"><Money paise={d.balance_paise} signed /></td>
+                    <td className="px-3 py-2.5 text-right">
+                      <WhatsAppReminderButton flatNumber={d.number} amountPaise={d.balance_paise} />
+                    </td>
                   </tr>
                 ))}
               </tbody>

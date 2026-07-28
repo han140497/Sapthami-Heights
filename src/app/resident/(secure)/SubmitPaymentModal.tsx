@@ -3,10 +3,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCard, Send } from "lucide-react";
+import { useToast } from "@/components/ui";
 import { submitResidentPaymentClaim } from "../actions";
 
 export function SubmitPaymentModal() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -19,10 +21,11 @@ export function SubmitPaymentModal() {
       const res = await submitResidentPaymentClaim(null, formData);
       if (res.ok) {
         setOpen(false);
-        alert(res.message ?? "Payment submitted!");
+        showToast(res.message ?? "Payment submitted!", "success");
         router.refresh();
       } else {
         setError(res.error ?? "Could not submit payment.");
+        showToast(res.error ?? "Could not submit payment.", "error");
       }
     });
   }

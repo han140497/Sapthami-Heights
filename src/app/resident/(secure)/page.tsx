@@ -9,6 +9,7 @@ import { Card, Money, PageHeader, StatTile, EmptyState, Badge } from "@/componen
 import { formatPaise } from "@/lib/money";
 
 import { SubmitPaymentModal } from "./SubmitPaymentModal";
+import { UpiPaymentCard } from "./UpiPaymentCard";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,8 @@ export default async function MyFlatPage() {
       >
         <SubmitPaymentModal />
       </PageHeader>
+
+      <UpiPaymentCard flatNumber={session.flatNumber} amountPaise={owed} />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <StatTile

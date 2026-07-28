@@ -8,12 +8,12 @@ import { Card, PageHeader, EmptyState, Badge } from "@/components/ui";
 import { formatPaise } from "@/lib/money";
 import { Droplets, TrendingDown } from "lucide-react";
 
+import { WaterTrendChart } from "./WaterTrendChart";
+
 export const dynamic = "force-dynamic";
 
 const MONTHS = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** Paise-per-litre shown as rupees-per-kilolitre, which is how people actually think
- *  about water pricing (₹/1000L), plus the raw paise/L for the precise. */
 function ratePerKl(paisePerLitre: number): string {
   return `₹${((paisePerLitre * 1000) / 100).toFixed(2)}/KL`;
 }
@@ -32,12 +32,25 @@ export default async function MyWaterPage() {
     myReadings.map((r) => [r.period_id as string, r]),
   );
 
+  const trendData = [...periods].slice(0, 6).reverse().map((p) => {
+    const mine = readingByPeriod.get(p.period_id) as
+      | { consumption_litres: number; is_estimated: boolean }
+      | undefined;
+    return {
+      periodLabel: `${MONTHS[p.month]}`,
+      litres: mine?.consumption_litres ?? 0,
+      isEstimated: mine?.is_estimated ?? false,
+    };
+  });
+
   return (
     <>
       <PageHeader
         title="Water charges, in full"
         subtitle="Sapthami Heights mixes Manjeera municipal water with tanker deliveries in one sump. Here is exactly how each month's rate was worked out — and your share."
       />
+
+      <WaterTrendChart trend={trendData} />
 
       {periods.length === 0 ? (
         <EmptyState

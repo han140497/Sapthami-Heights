@@ -3,10 +3,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { RotateCcw, AlertTriangle } from "lucide-react";
+import { useToast } from "@/components/ui";
 import { resetAllTestData } from "./actions";
 
 export function ResetDataButton() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -17,10 +19,11 @@ export function ResetDataButton() {
       const res = await resetAllTestData();
       if (res.ok) {
         setOpen(false);
-        alert(res.message ?? "All test data cleared.");
+        showToast(res.message ?? "All test data cleared.", "success");
         router.refresh();
       } else {
         setError(res.error ?? "Could not reset test data.");
+        showToast(res.error ?? "Could not reset test data.", "error");
       }
     });
   }
