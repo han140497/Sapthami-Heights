@@ -14,6 +14,7 @@ const residentPaymentSchema = z.object({
   paidOn: z.string(),
   reference: z.string().optional(),
   notes: z.string().optional(),
+  receiptData: z.string().optional(),
 });
 
 export async function submitResidentPaymentClaim(_prev: unknown, formData: FormData): Promise<ActionResult> {
@@ -23,10 +24,11 @@ export async function submitResidentPaymentClaim(_prev: unknown, formData: FormD
 
     const parsed = residentPaymentSchema.parse({
       amount: formData.get("amount"),
-      mode: formData.get("mode"),
+      mode: formData.get("mode") ?? "upi",
       paidOn: formData.get("paidOn"),
       reference: formData.get("reference") ?? "",
       notes: formData.get("notes") ?? "",
+      receiptData: formData.get("receiptData") ?? "",
     });
 
     const amountPaise = rupeesToPaise(parsed.amount);
@@ -42,17 +44,16 @@ export async function submitResidentPaymentClaim(_prev: unknown, formData: FormD
         mode: parsed.mode,
         paid_on: parsed.paidOn,
         reference: parsed.reference || null,
-        notes: parsed.notes || "Submitted by resident",
+        notes: parsed.notes || `Reported by flat ${session.flatNumber}`,
+        receipt_path: parsed.receiptData || null,
         status: "recorded",
       })
       .select("id")
       .single();
 
     if (error || !payment) {
-      return {
-        ok: false,
-        error: error?.code === "23505" ? "This payment reference/UTR was already submitted." : "Could not submit payment claim.",
-      };
+      console.error("Payment submission error:", error);
+      return { ok: false, error: "Could not submit payment claim." };
     }
 
     // Auto-allocate against open invoices
@@ -85,7 +86,7 @@ export async function submitResidentPaymentClaim(_prev: unknown, formData: FormD
     revalidatePath("/resident");
     revalidatePath("/committee/money");
     revalidatePath("/committee");
-    return { ok: true, message: "Payment details submitted to the committee for verification!" };
+    return { ok: true, message: "Payment notice sent to committee for verification!" };
   } catch (e) {
     return { ok: false, error: "Check details and try again." };
   }

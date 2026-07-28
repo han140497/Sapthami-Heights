@@ -8,8 +8,7 @@ import {
 import { Card, Money, PageHeader, StatTile, EmptyState, Badge } from "@/components/ui";
 import { formatPaise } from "@/lib/money";
 
-import { SubmitPaymentModal } from "./SubmitPaymentModal";
-import { UpiPaymentCard } from "./UpiPaymentCard";
+import { PayMaintenanceModal } from "./PayMaintenanceModal";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +32,8 @@ export default async function MyFlatPage() {
         title={`Flat ${session.flatNumber}`}
         subtitle="Your maintenance account with the society."
       >
-        <SubmitPaymentModal />
+        <PayMaintenanceModal flatNumber={session.flatNumber} amountPaise={owed} />
       </PageHeader>
-
-      <UpiPaymentCard flatNumber={session.flatNumber} amountPaise={owed} />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <StatTile

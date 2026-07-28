@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, CheckCircle } from "lucide-react";
+import { Pencil, Trash2, CheckCircle, FileText, Image as ImageIcon, Eye } from "lucide-react";
 import { paiseToRupeeInput } from "@/lib/money";
 import { verifyPayment, deletePayment, updatePayment } from "./actions";
 
@@ -15,6 +15,7 @@ export type PaymentItem = {
   status: string;
   paid_on: string;
   reference?: string | null;
+  receipt_path?: string | null;
 };
 
 export function PaymentRowActions({
@@ -108,8 +109,19 @@ export function PaymentRowActions({
     );
   }
 
+  const [showProof, setShowProof] = useState(false);
+
   return (
     <div className="flex items-center justify-end gap-2 text-xs">
+      {payment.receipt_path && (
+        <button
+          onClick={() => setShowProof(true)}
+          className="flex items-center gap-1 rounded border border-accent/40 bg-accent/10 px-2 py-1 font-semibold text-accent hover:bg-accent/20"
+          title="View uploaded payment receipt proof"
+        >
+          <Eye className="h-3.5 w-3.5" /> Proof
+        </button>
+      )}
       {payment.status === "recorded" && (
         <button onClick={onVerify} disabled={pending} className="flex items-center gap-1 rounded bg-positive/10 px-2 py-1 font-semibold text-positive hover:bg-positive/20 disabled:opacity-50">
           <CheckCircle className="h-3.5 w-3.5" /> Verify
@@ -121,6 +133,23 @@ export function PaymentRowActions({
       <button onClick={onDelete} disabled={pending} className="flex items-center gap-1 text-negative hover:underline disabled:opacity-50">
         <Trash2 className="h-3.5 w-3.5" /> Delete
       </button>
+
+      {showProof && payment.receipt_path && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="relative max-w-lg w-full rounded-xl border border-border bg-surface p-4 text-left shadow-2xl">
+            <div className="flex items-center justify-between mb-3 border-b border-border pb-2">
+              <h4 className="font-semibold text-sm">Payment Proof — Flat {payment.flat_number ?? "—"}</h4>
+              <button onClick={() => setShowProof(false)} className="text-xs text-muted hover:text-foreground font-bold">Close ✕</button>
+            </div>
+            {payment.receipt_path.startsWith("data:image") ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={payment.receipt_path} alt="Payment Receipt" className="max-h-96 w-full rounded object-contain" />
+            ) : (
+              <iframe src={payment.receipt_path} className="h-80 w-full rounded border" title="Receipt PDF" />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
